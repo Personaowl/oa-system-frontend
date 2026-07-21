@@ -68,6 +68,9 @@ const approvalPieOption = computed(() => ({
     {
       type: 'pie',
       radius: ['40%', '68%'],
+      label: { show: false },
+      labelLine: { show: false },
+      emphasis: { label: { show: false } },
       data: [
         { value: pending.value.length, name: '待审批' },
         { value: done.value.filter((item) => item.status === '已通过').length, name: '已通过' },

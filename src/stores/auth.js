@@ -2,9 +2,12 @@ import { computed, reactive, readonly } from 'vue'
 import { loadJSON, saveJSON } from '../utils/storage'
 
 const AUTH_KEY = 'oa-auth'
+const AVATAR_KEY = 'oa-avatar-by-username'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
 const LOGIN_PATH = '/api/v1/auth/login'
+const REGISTER_PATH = '/api/v1/auth/register'
 const CURRENT_USER_PATH = '/api/v1/users/me'
+const ACCOUNT_PATH = '/api/v1/users/me/account'
 
 const roleMap = {
   ADMIN: '超级管理员',
@@ -23,6 +26,8 @@ const state = reactive({
   profile: null
 })
 
+const avatarsByUsername = loadJSON(AVATAR_KEY, {}) || {}
+
 const saved = loadJSON(AUTH_KEY, null)
 if (saved?.token && saved?.profile && !String(saved.token).startsWith('demo-')) {
   state.token = saved.token
@@ -37,6 +42,14 @@ function persist() {
   } else {
     localStorage.removeItem(AUTH_KEY)
   }
+}
+
+function persistAvatars() {
+  saveJSON(AVATAR_KEY, avatarsByUsername)
+}
+
+function defaultAvatar(name) {
+  return String(name).trim().slice(0, 1).toUpperCase() || 'U'
 }
 
 function apiUrl(path) {
@@ -119,6 +132,7 @@ function resolveRole(profile) {
 
 function normalizeProfile(source, username) {
   const profile = source?.user ?? source?.profile ?? source ?? {}
+  const accountUsername = profile.username || profile.account || username
   const name = profile.name || profile.realName || profile.nickname || profile.username || profile.account || username
   const department = asText(
     profile.departmentName
@@ -131,10 +145,11 @@ function normalizeProfile(source, username) {
 
   return {
     id: profile.id ?? profile.userId ?? profile.uid ?? username,
+    username: accountUsername,
     name,
     role: resolveRole(profile),
     department,
-    avatar: String(name).trim().slice(0, 1).toUpperCase() || 'U'
+    avatar: avatarsByUsername[accountUsername] || defaultAvatar(name)
   }
 }
 
@@ -159,6 +174,54 @@ export function useAuthStore() {
     return state.profile
   }
 
+  async function register(username, password) {
+    await request(REGISTER_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    })
+  }
+
+  async function updateAccount({ username, currentPassword, newPassword }) {
+    const previousUsername = state.profile?.username
+    const payload = { currentPassword }
+    if (username?.trim()) payload.username = username.trim()
+    if (newPassword) payload.newPassword = newPassword
+
+    const { body } = await request(ACCOUNT_PATH, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${state.token}`
+      },
+      body: JSON.stringify(payload)
+    })
+
+    const updated = unwrap(body)
+    const nextUsername = updated?.username || payload.username || state.profile?.username
+    if (previousUsername && nextUsername && previousUsername !== nextUsername && avatarsByUsername[previousUsername]) {
+      avatarsByUsername[nextUsername] = avatarsByUsername[previousUsername]
+      delete avatarsByUsername[previousUsername]
+      persistAvatars()
+    }
+    await login(nextUsername, newPassword || currentPassword)
+    return state.profile
+  }
+
+  function setAvatar(avatar) {
+    const username = state.profile?.username
+    if (!username || !state.profile) return
+
+    if (avatar) {
+      avatarsByUsername[username] = avatar
+    } else {
+      delete avatarsByUsername[username]
+    }
+    state.profile.avatar = avatar || defaultAvatar(state.profile.name)
+    persistAvatars()
+    persist()
+  }
+
   function logout() {
     state.token = ''
     state.profile = null
@@ -170,6 +233,9 @@ export function useAuthStore() {
     isAuthed,
     role,
     login,
+    register,
+    updateAccount,
+    setAvatar,
     logout
   }
 }
