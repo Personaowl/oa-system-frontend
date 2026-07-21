@@ -38,7 +38,7 @@
     </div>
 
     <div class="two-col">
-      <ChartPanel title="部门人员分布" subtitle="组织结构概览" :option="deptOption" />
+      
       <div class="panel section">
         <SectionTitle title="常用操作" subtitle="高频工作可直接进入对应模块。" />
         <div class="quick-actions">
@@ -59,6 +59,7 @@
           <el-table-column prop="note" label="备注" />
         </el-table>
       </div>
+      <ChartPanel title="部门人员分布" subtitle="组织结构概览" :option="deptOption" />
     </div>
   </div>
 </template>
