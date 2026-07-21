@@ -8,27 +8,48 @@
       <el-button v-if="canPublish" type="primary" :icon="Promotion" @click="dialogVisible = true">发布公告</el-button>
     </div>
 
-    <div class="two-col">
-      <div class="panel section">
-        <SectionTitle title="公告列表" subtitle="适合作为答辩演示中的站内消息模块。" />
-        <el-timeline>
-          <el-timeline-item v-for="item in visibleNotices" :key="item.id" :timestamp="item.createdAt" placement="top">
-            <div style="font-weight: 600">{{ item.title }}</div>
-            <div class="muted" style="margin-top: 6px; font-size: 13px">
-              {{ item.scope }} · {{ item.publisher }}
-            </div>
-          </el-timeline-item>
-        </el-timeline>
-      </div>
+    <div class="notice-layout">
+      <section class="panel section notice-list-panel">
+        <SectionTitle title="公告列表" subtitle="按发布时间查看与当前部门相关的站内通知。">
+          <template #extra><el-tag effect="plain">{{ visibleNotices.length }} 条</el-tag></template>
+        </SectionTitle>
+        <div class="notice-timeline-wrap">
+          <el-timeline v-if="visibleNotices.length">
+            <el-timeline-item v-for="item in visibleNotices" :key="item.id" :timestamp="item.createdAt" placement="top">
+              <article class="notice-entry">
+                <div class="notice-entry-title">{{ item.title }}</div>
+                <div class="notice-entry-meta">
+                  <el-tag size="small" effect="plain">{{ item.scope }}</el-tag>
+                  <span>{{ item.publisher }} 发布</span>
+                </div>
+              </article>
+            </el-timeline-item>
+          </el-timeline>
+          <el-empty v-else description="暂无可查看的公告" :image-size="86" />
+        </div>
+      </section>
 
-      <div class="panel section">
-        <SectionTitle title="通知概览" subtitle="发布频率和范围一目了然。" />
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="可见公告">{{ visibleNotices.length }}</el-descriptions-item>
-          <el-descriptions-item label="发布范围">全员 / 指定部门</el-descriptions-item>
-          <el-descriptions-item label="通知效果">站内消息 + 页面列表</el-descriptions-item>
-        </el-descriptions>
-      </div>
+      <aside class="panel section notice-overview-panel">
+        <SectionTitle title="通知概览" subtitle="掌握当前公告覆盖情况。" />
+        <div class="notice-metrics">
+          <div class="notice-metric">
+            <span>当前可见</span>
+            <strong>{{ visibleNotices.length }}</strong>
+            <small>与您相关的公告</small>
+          </div>
+          <div class="notice-metric">
+            <span>全员公告</span>
+            <strong>{{ companyNotices }}</strong>
+            <small>覆盖所有在岗员工</small>
+          </div>
+        </div>
+        <div class="notice-scope-card">
+          <span class="notice-scope-label">当前接收范围</span>
+          <strong>全员 / {{ auth.state.profile?.department || '当前部门' }}</strong>
+          <p>重要公告会同步展示在此处，请及时查看最新安排。</p>
+        </div>
+        <div v-if="canPublish" class="notice-publisher-tip">您拥有公告发布权限，可面向全员或指定部门发送通知。</div>
+      </aside>
     </div>
 
     <el-dialog v-model="dialogVisible" title="发布公告" width="560px">
@@ -71,6 +92,7 @@ const formRef = ref()
 const form = reactive({ title: 'OA 系统通知', scope: '全员', content: '请各部门按时完成本周工作安排。' })
 const canPublish = computed(() => ['超级管理员', 'HR 人事'].includes(auth.role.value))
 const visibleNotices = computed(() => oa.state.notices.filter((item) => item.scope === '全员' || item.scope === auth.state.profile?.department))
+const companyNotices = computed(() => oa.state.notices.filter((item) => item.scope === '全员').length)
 const rules = {
   title: [{ required: true, message: '请输入公告标题', trigger: 'blur' }],
   scope: [{ required: true, message: '请选择发布范围', trigger: 'change' }],

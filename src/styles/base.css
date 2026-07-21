@@ -1389,7 +1389,7 @@ a {
 }
 
 .approval-page .panel.section {
-  min-height: 430px;
+  min-height: 0;
 }
 
 .notice-page .el-timeline {
@@ -1399,6 +1399,106 @@ a {
 .notice-page .el-timeline-item__timestamp {
   color: #80929c;
   font-size: 11px;
+}
+
+.notice-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
+  align-items: stretch;
+  gap: 16px;
+}
+
+.notice-list-panel,
+.notice-overview-panel {
+  min-width: 0;
+}
+
+.notice-timeline-wrap {
+  max-height: 500px;
+  padding-right: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.notice-entry {
+  padding: 2px 0 12px;
+}
+
+.notice-entry-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.notice-entry-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notice-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notice-metric {
+  padding: 14px;
+  border: 1px solid #e2ebee;
+  border-radius: 9px;
+  background: #f8fbfc;
+}
+
+.notice-metric span,
+.notice-metric small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notice-metric strong {
+  display: block;
+  margin: 8px 0 4px;
+  color: var(--primary);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.notice-scope-card {
+  margin-top: 14px;
+  padding: 15px;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 8px 8px 0;
+  background: #f4f8ff;
+}
+
+.notice-scope-label,
+.notice-scope-card p {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notice-scope-card strong {
+  display: block;
+  margin: 7px 0;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.notice-publisher-tip {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e7eef1;
+  color: #59717d;
+  font-size: 12px;
+  line-height: 1.65;
 }
 
 .board-page .el-progress-bar__outer {
@@ -1412,6 +1512,10 @@ a {
   }
 
   .two-col {
+    flex-direction: column;
+  }
+
+  .notice-layout {
     grid-template-columns: 1fr;
   }
 }
