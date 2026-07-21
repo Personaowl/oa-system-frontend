@@ -17,7 +17,7 @@
     <div class="panel section">
       <el-tabs v-model="activeTab">
         <el-tab-pane label="待审批" name="pending">
-          <el-table :data="visiblePending" border>
+          <el-table :data="visiblePending" border max-height="480">
             <el-table-column prop="applicant" label="申请人" width="120" />
             <el-table-column prop="type" label="类型" width="120">
               <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.type }}</el-tag></template>
@@ -35,7 +35,7 @@
           </el-table>
         </el-tab-pane>
         <el-tab-pane label="已处理" name="done">
-          <el-table :data="visibleDone" border>
+          <el-table :data="visibleDone" border max-height="480">
             <el-table-column prop="applicant" label="申请人" width="120" />
             <el-table-column prop="type" label="类型" width="120">
               <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.type }}</el-tag></template>
