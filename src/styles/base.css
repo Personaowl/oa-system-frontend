@@ -387,47 +387,6 @@ a {
   font-size: 14px;
 }
 
-.demo-account-section {
-  margin: 30px 0 24px;
-}
-
-.demo-account-label {
-  margin-bottom: 9px;
-  color: #4f6675;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.demo-account-picker {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.demo-account-picker .el-radio-button {
-  width: 100%;
-}
-
-.demo-account-picker .el-radio-button__inner {
-  width: 100%;
-  border: 1px solid #cedae0;
-  border-radius: 6px;
-  box-shadow: none;
-  color: #4f6675;
-  font-size: 12px;
-}
-
-.demo-account-picker .el-radio-button:first-child .el-radio-button__inner {
-  border-left: 1px solid #cedae0;
-}
-
-.demo-account-picker .el-radio-button__original-radio:checked + .el-radio-button__inner {
-  border-color: #2563eb;
-  background: #eff6ff;
-  box-shadow: -1px 0 0 0 #2563eb;
-  color: #1d4ed8;
-}
-
 .login-form-shell .el-form-item {
   margin-bottom: 20px;
 }
@@ -435,6 +394,10 @@ a {
 .login-form-shell .el-form-item__label {
   color: #314b5a;
   font-weight: 600;
+}
+
+.login-form-shell .el-form {
+  margin-top: 30px;
 }
 
 .login-form-shell .el-input__wrapper {
@@ -1164,15 +1127,8 @@ a {
 
   .login-form-shell .el-form,
   .login-form-shell .el-form-item,
-  .login-form-shell .el-form-item__content,
-  .demo-account-picker,
-  .demo-account-picker .el-radio-button {
+  .login-form-shell .el-form-item__content {
     min-width: 0;
-  }
-
-  .demo-account-picker .el-radio-button__inner {
-    padding-right: 6px;
-    padding-left: 6px;
   }
 
   .sidebar-caption,
