@@ -60,6 +60,19 @@ VITE_API_BASE_URL=http://localhost:8080
 | 获取当前用户 | `GET` | `/api/v1/users/me` |
 | 修改用户名或密码 | `PUT` | `/api/v1/users/me/account` |
 
+公告模块已接入以下接口：
+
+| 用途 | 方法 | 路径 |
+| --- | --- | --- |
+| 创建公告 | `POST` | `/api/v1/notices` |
+| 更新公告 | `PUT` | `/api/v1/notices/{id}` |
+| 删除公告 | `DELETE` | `/api/v1/notices/{id}` |
+| 发布公告 | `POST` | `/api/v1/notices/{id}/publish` |
+| 下线公告 | `POST` | `/api/v1/notices/{id}/offline` |
+| 管理端列表与详情 | `GET` | `/api/v1/notices`、`/api/v1/notices/{id}` |
+| 员工公告列表与详情 | `GET` | `/api/v1/notices/public`、`/api/v1/notices/public/{id}` |
+| 标记已读与未读数 | `POST` / `GET` | `/api/v1/notices/{id}/read`、`/api/v1/notices/public/unread-count` |
+
 登录与注册请求示例：
 
 ```json

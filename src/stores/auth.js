@@ -93,6 +93,11 @@ async function request(path, options = {}) {
   }
 
   const body = await parseBody(response)
+  if (response.status === 401 && path !== LOGIN_PATH && path !== REGISTER_PATH) {
+    logout()
+    window.dispatchEvent(new Event('auth-expired'))
+    throw new Error('登录状态已过期，请重新登录')
+  }
   if (!response.ok || hasBusinessError(body)) {
     throw new Error(getMessage(body, `请求失败（${response.status}）`))
   }
