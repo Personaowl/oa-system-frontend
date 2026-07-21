@@ -41,6 +41,24 @@ npm run dev
 
 开发服务器默认地址：`http://127.0.0.1:5173/`
 
+## 认证接口配置
+
+前端已对接以下接口：
+
+- `POST /api/v1/auth/login`
+- `GET /api/v1/users/me`
+
+本地开发时，Vite 会将 `/api` 请求代理到 `http://localhost:8080`，避免跨域问题。若前端与后端不在同一地址，可复制 `.env.example` 为 `.env.local` 并调整 `VITE_API_BASE_URL`。
+
+登录请求使用 JSON 格式：
+
+```json
+{
+  "username": "your-account",
+  "password": "your-password"
+}
+```
+
 构建生产包：
 
 ```bash

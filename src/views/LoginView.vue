@@ -76,15 +76,6 @@
           <p>使用企业账号继续办公。</p>
         </div>
 
-        <div class="demo-account-section">
-          <div class="demo-account-label">快速选择角色</div>
-          <el-radio-group v-model="selectedDemo" class="demo-account-picker" @change="applyDemo">
-            <el-radio-button v-for="item in demoRoles" :key="item.username" :label="item.username">
-              {{ item.label }}
-            </el-radio-button>
-          </el-radio-group>
-        </div>
-
         <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleLogin">
           <el-form-item label="用户名" prop="username">
             <el-input v-model="form.username" :prefix-icon="User" placeholder="请输入用户名" size="large" />
@@ -99,7 +90,7 @@
 
         <div class="login-form-footnote">
           <el-icon><CircleCheckFilled /></el-icon>
-          <span>本地演示环境，数据仅保存在当前浏览器。</span>
+          <span>登录后将自动同步你的组织与角色权限。</span>
         </div>
       </div>
     </section>
@@ -126,26 +117,12 @@ const router = useRouter()
 const auth = useAuthStore()
 const formRef = ref()
 const loading = ref(false)
-const selectedDemo = ref('admin')
-const form = reactive({ username: 'admin', password: '123456' })
-const demoRoles = [
-  { username: 'admin', label: '管理员' },
-  { username: 'hr', label: 'HR 人事' },
-  { username: 'manager', label: '部门主管' },
-  { username: 'employee', label: '普通员工' }
-]
+const form = reactive({ username: '', password: '' })
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 const dateLabel = computed(() => new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date()))
-
-function applyDemo(username) {
-  const account = auth.demoAccounts.find((item) => item.username === username)
-  if (!account) return
-  form.username = account.username
-  form.password = account.password
-}
 
 async function handleLogin() {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -153,7 +130,7 @@ async function handleLogin() {
 
   loading.value = true
   try {
-    auth.login(form.username, form.password)
+    await auth.login(form.username, form.password)
     ElMessage.success('登录成功')
     router.replace('/dashboard')
   } catch (err) {
