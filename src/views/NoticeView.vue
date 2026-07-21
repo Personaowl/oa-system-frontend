@@ -1,5 +1,5 @@
 <template>
-  <div class="content-grid">
+  <div class="content-grid notice-page">
     <div class="page-head">
       <div>
         <h1 class="page-title">公告通知</h1>

@@ -1,5 +1,5 @@
 <template>
-  <div class="content-grid">
+  <div class="content-grid attendance-page">
     <div class="page-head">
       <div>
         <h1 class="page-title">考勤打卡</h1>

@@ -1,5 +1,5 @@
 <template>
-  <div class="content-grid">
+  <div class="content-grid approval-page">
     <div class="page-head">
       <div>
         <h1 class="page-title">审批流程</h1>
@@ -19,7 +19,9 @@
         <el-tab-pane label="待审批" name="pending">
           <el-table :data="visiblePending" border>
             <el-table-column prop="applicant" label="申请人" width="120" />
-            <el-table-column prop="type" label="类型" width="120" />
+            <el-table-column prop="type" label="类型" width="120">
+              <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.type }}</el-tag></template>
+            </el-table-column>
             <el-table-column prop="days" label="时长" width="100" />
             <el-table-column prop="reason" label="原因" />
             <el-table-column prop="approver" label="审批人" width="120" />
@@ -35,8 +37,12 @@
         <el-tab-pane label="已处理" name="done">
           <el-table :data="visibleDone" border>
             <el-table-column prop="applicant" label="申请人" width="120" />
-            <el-table-column prop="type" label="类型" width="120" />
-            <el-table-column prop="status" label="状态" width="100" />
+            <el-table-column prop="type" label="类型" width="120">
+              <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.type }}</el-tag></template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="100">
+              <template #default="{ row }"><el-tag size="small" :type="row.status === '已通过' ? 'success' : 'danger'">{{ row.status }}</el-tag></template>
+            </el-table-column>
             <el-table-column prop="reviewComment" label="审批意见" />
             <el-table-column prop="reviewedAt" label="处理时间" width="180" />
           </el-table>

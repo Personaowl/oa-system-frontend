@@ -1,16 +1,17 @@
 <template>
-  <div class="content-grid">
-    <div class="page-head">
+  <div class="content-grid dashboard-page">
+    <section class="dashboard-welcome panel">
       <div>
-        <h1 class="page-title">系统总览</h1>
-        <p class="page-subtitle">聚合人事、考勤、审批、公告的核心指标，适合作为答辩演示首页。</p>
+        <div class="dashboard-welcome-kicker">PERSONAL WORKSPACE</div>
+        <h1>你好，{{ auth.state.profile?.name }}</h1>
+        <p>今天的组织、考勤与审批动态已经同步到工作台。</p>
       </div>
-      <div class="tool-row">
-        <el-tag effect="plain" type="success">JWT 无状态</el-tag>
-        <el-tag effect="plain" type="warning">Nacos 配置</el-tag>
-        <el-tag effect="plain" type="info">Vue3 + Element Plus</el-tag>
+      <div class="dashboard-health">
+        <span>平台状态</span>
+        <strong>运行稳定</strong>
+        <small>核心服务连接正常</small>
       </div>
-    </div>
+    </section>
 
     <div class="stat-grid">
       <StatCard title="部门数量" :value="stats.departments" subtitle="组织架构已录入" :icon="OfficeBuilding" color="var(--primary)" />
@@ -20,54 +21,43 @@
     </div>
 
     <div class="two-col">
-      <ChartPanel :title="'近七天审批趋势'" subtitle="查看审批流转数量变化" :option="approvalOption" />
+      <ChartPanel title="审批流转趋势" subtitle="近七天单据处理量" :option="approvalOption" />
       <div class="panel section">
-        <SectionTitle title="系统摘要" subtitle="适合讲解项目时快速过一遍功能模块。">
+        <SectionTitle title="工作摘要" subtitle="当前工作空间的关键状态。">
           <template #extra>
             <el-tag effect="plain">运行中</el-tag>
           </template>
         </SectionTitle>
 
-        <div class="content-grid" style="gap: 12px">
-          <div class="panel-soft" style="padding: 14px">
-            <div class="muted" style="font-size: 13px">当前用户</div>
-            <div style="margin-top: 8px; font-weight: 600">{{ auth.state.profile?.name }} / {{ auth.state.profile?.role }}</div>
-          </div>
-          <div class="panel-soft" style="padding: 14px">
-            <div class="muted" style="font-size: 13px">今日异常考勤</div>
-            <div style="margin-top: 8px; font-weight: 600">{{ stats.lateCount }} 条迟到记录</div>
-          </div>
-          <div class="panel-soft" style="padding: 14px">
-            <div class="muted" style="font-size: 13px">公告状态</div>
-            <div style="margin-top: 8px; font-weight: 600">{{ stats.noticeCount }} 条已发布通知</div>
-          </div>
+        <div class="summary-list">
+          <div class="summary-row"><span>当前身份</span><strong>{{ auth.state.profile?.role }}</strong></div>
+          <div class="summary-row"><span>今日异常考勤</span><strong>{{ stats.lateCount }} 条迟到记录</strong></div>
+          <div class="summary-row"><span>已发布公告</span><strong>{{ stats.noticeCount }} 条</strong></div>
         </div>
       </div>
     </div>
 
     <div class="two-col">
-      <ChartPanel :title="'部门人员分布'" subtitle="组织结构概览" :option="deptOption" />
+      <ChartPanel title="部门人员分布" subtitle="组织结构概览" :option="deptOption" />
       <div class="panel section">
-        <SectionTitle title="快捷入口" subtitle="常用操作一眼可见，演示也更顺手。" />
-        <div class="tool-row">
+        <SectionTitle title="常用操作" subtitle="高频工作可直接进入对应模块。" />
+        <div class="quick-actions">
           <el-button type="primary" :icon="Calendar" @click="$router.push('/attendance')">考勤打卡</el-button>
           <el-button :icon="Document" @click="$router.push('/approval')">提交审批</el-button>
-          <el-button :icon="Bell" @click="$router.push('/notice')">发布公告</el-button>
+          <el-button :icon="Bell" @click="$router.push('/notice')">公告通知</el-button>
           <el-button :icon="TrendCharts" @click="$router.push('/board')">查看看板</el-button>
         </div>
-        <div style="margin-top: 18px" class="panel-soft">
-          <el-table :data="attendanceToday" height="220">
-            <el-table-column prop="time" label="时间" width="170" />
-            <el-table-column prop="employee" label="员工" width="110" />
-            <el-table-column prop="type" label="类型" width="110" />
-            <el-table-column prop="result" label="结果" width="100">
-              <template #default="{ row }">
-                <span class="status-pill" :class="pillClass(row.result)">{{ row.result }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="note" label="备注" />
-          </el-table>
-        </div>
+        <el-table class="compact-table" :data="attendanceToday" height="205">
+          <el-table-column prop="time" label="时间" width="170" />
+          <el-table-column prop="employee" label="员工" width="110" />
+          <el-table-column prop="type" label="类型" width="110" />
+          <el-table-column prop="result" label="结果" width="100">
+            <template #default="{ row }">
+              <span class="status-pill" :class="pillClass(row.result)">{{ row.result }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="note" label="备注" />
+        </el-table>
       </div>
     </div>
   </div>
@@ -97,7 +87,7 @@ const deptOption = computed(() => ({
       type: 'bar',
       data: oa.state.departments.map((item) => item.people),
       barWidth: 28,
-      itemStyle: { borderRadius: [8, 8, 0, 0], color: '#0f766e' }
+      itemStyle: { borderRadius: [8, 8, 0, 0], color: '#2563eb' }
     }
   ]
 }))

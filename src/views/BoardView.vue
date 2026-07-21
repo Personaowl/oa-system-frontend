@@ -1,5 +1,5 @@
 <template>
-  <div class="content-grid">
+  <div class="content-grid board-page">
     <div class="page-head">
       <div>
         <h1 class="page-title">数据看板</h1>
@@ -56,7 +56,7 @@ const attendanceOption = computed(() => ({
   xAxis: { type: 'category', data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] },
   yAxis: { type: 'value' },
   series: [
-    { name: '打卡', type: 'bar', data: [26, 28, 27, 30, 29, 22, 19], itemStyle: { color: '#0f766e' } },
+    { name: '打卡', type: 'bar', data: [26, 28, 27, 30, 29, 22, 19], itemStyle: { color: '#2563eb' } },
     { name: '迟到', type: 'line', data: [1, 2, 1, 3, 1, 0, 1], smooth: true, itemStyle: { color: '#d97706' } }
   ]
 }))
@@ -69,9 +69,9 @@ const approvalPieOption = computed(() => ({
       type: 'pie',
       radius: ['40%', '68%'],
       data: [
-        { value: pending.length, name: '待审批' },
-        { value: done.filter((item) => item.status === '已通过').length, name: '已通过' },
-        { value: done.filter((item) => item.status === '已驳回').length, name: '已驳回' }
+        { value: pending.value.length, name: '待审批' },
+        { value: done.value.filter((item) => item.status === '已通过').length, name: '已通过' },
+        { value: done.value.filter((item) => item.status === '已驳回').length, name: '已驳回' }
       ]
     }
   ]

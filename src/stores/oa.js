@@ -39,8 +39,24 @@ const fallback = {
 }
 
 const saved = loadJSON(OA_KEY, null)
+const dataKeys = ['departments', 'employees', 'attendance', 'approvals', 'notices']
 
-const state = reactive(saved || fallback)
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function createInitialState(source) {
+  return dataKeys.reduce((result, key) => {
+    result[key] = Array.isArray(source?.[key]) ? source[key] : clone(fallback[key])
+    return result
+  }, {})
+}
+
+const state = reactive(createInitialState(saved))
+
+if (dataKeys.some((key) => !Array.isArray(saved?.[key]))) {
+  saveJSON(OA_KEY, state)
+}
 
 function persist() {
   saveJSON(OA_KEY, state)

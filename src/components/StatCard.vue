@@ -1,15 +1,13 @@
 <template>
-  <div class="panel section">
-    <div class="tool-row" style="justify-content: space-between; align-items: flex-start">
-      <div>
-        <div class="muted" style="font-size: 13px">{{ title }}</div>
-        <div style="margin-top: 8px; font-size: 28px; font-weight: 700">{{ value }}</div>
+  <div class="metric-card panel" :style="{ '--metric-color': color }">
+    <div class="metric-card-head">
+      <div class="metric-card-label">{{ title }}</div>
+      <div class="metric-icon">
+        <el-icon :size="18"><component :is="icon" /></el-icon>
       </div>
-      <el-icon :style="{ color }" :size="26">
-        <component :is="icon" />
-      </el-icon>
     </div>
-    <div style="margin-top: 10px; font-size: 12px" class="muted">{{ subtitle }}</div>
+    <div class="metric-value">{{ value }}</div>
+    <div class="metric-foot"><span class="metric-foot-dot"></span>{{ subtitle }}</div>
   </div>
 </template>
 

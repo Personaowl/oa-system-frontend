@@ -1,5 +1,5 @@
 <template>
-  <div class="content-grid">
+  <div class="content-grid org-page">
     <div class="page-head">
       <div>
         <h1 class="page-title">组织权限</h1>
@@ -23,50 +23,55 @@
       </div>
     </div>
 
-    <div class="two-col">
+    <div class="org-panels">
       <section class="panel section">
         <SectionTitle title="部门管理" subtitle="维护组织结构、负责人和部门人数。" />
-        <el-table :data="oa.state.departments" border>
-          <el-table-column prop="name" label="部门名称" min-width="150" />
-          <el-table-column prop="manager" label="负责人" width="130" />
-          <el-table-column prop="people" label="人数" width="100" align="center" />
-          <el-table-column label="操作" width="140" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openDepartment(row)">编辑</el-button>
-              <el-button link type="danger" @click="removeDepartment(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="table-wrap">
+          <el-table class="department-table" :data="oa.state.departments" border>
+            <el-table-column prop="name" label="部门名称" min-width="180" />
+            <el-table-column prop="manager" label="负责人" width="150" />
+            <el-table-column prop="people" label="人数" width="110" align="center" />
+            <el-table-column label="操作" width="150" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openDepartment(row)">编辑</el-button>
+                <el-button link type="danger" @click="removeDepartment(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </section>
 
       <section class="panel section">
         <SectionTitle title="员工管理" subtitle="按姓名、工号或部门筛选员工信息。">
           <template #extra>
-            <div class="tool-row" style="gap: 8px">
-              <el-input v-model="keyword" clearable placeholder="姓名 / 工号" style="width: 150px" />
-              <el-select v-model="departmentFilter" clearable placeholder="全部部门" style="width: 130px">
+            <div class="org-filter-row">
+              <el-input v-model="keyword" clearable placeholder="姓名 / 工号" class="org-search" />
+              <el-select v-model="departmentFilter" clearable placeholder="全部部门" class="org-department-filter">
                 <el-option v-for="item in departmentOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </div>
           </template>
         </SectionTitle>
-        <el-table :data="filteredEmployees" border height="410">
-          <el-table-column prop="name" label="姓名" width="96" />
-          <el-table-column prop="jobNo" label="工号" width="118" />
-          <el-table-column prop="department" label="部门" min-width="120" />
-          <el-table-column prop="role" label="角色" min-width="118" />
-          <el-table-column prop="status" label="状态" width="88">
-            <template #default="{ row }">
-              <span class="status-pill" :class="row.status === '在岗' ? 'is-success' : 'is-warning'">{{ row.status }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="openEmployee(row)">编辑</el-button>
-              <el-button link type="danger" @click="removeEmployee(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="table-wrap">
+          <el-table class="employee-table" :data="filteredEmployees" border height="410">
+            <el-table-column prop="name" label="姓名" width="110" />
+            <el-table-column prop="jobNo" label="工号" width="130" />
+            <el-table-column prop="department" label="部门" min-width="150" />
+            <el-table-column prop="role" label="角色" min-width="150" />
+            <el-table-column prop="status" label="状态" width="100">
+              <template #default="{ row }">
+                <span class="status-pill" :class="row.status === '在岗' ? 'is-success' : 'is-warning'">{{ row.status }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="phone" label="联系电话" width="150" />
+            <el-table-column label="操作" width="150" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="openEmployee(row)">编辑</el-button>
+                <el-button link type="danger" @click="removeEmployee(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </section>
     </div>
 
@@ -229,3 +234,50 @@ async function removeEmployee(row) {
   }
 }
 </script>
+
+<style scoped>
+.org-panels {
+  display: grid;
+  gap: 16px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.department-table {
+  min-width: 560px;
+}
+
+.employee-table {
+  min-width: 880px;
+}
+
+.org-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.org-search {
+  width: 168px;
+}
+
+.org-department-filter {
+  width: 138px;
+}
+
+@media (max-width: 760px) {
+  .org-filter-row {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .org-search,
+  .org-department-filter {
+    flex: 1 1 150px;
+  }
+}
+</style>

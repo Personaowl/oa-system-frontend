@@ -1,5 +1,5 @@
 <template>
-  <div class="panel section">
+  <div class="panel section chart-panel">
     <SectionTitle :title="title" :subtitle="subtitle" />
     <div ref="elRef" class="chart-box"></div>
   </div>
@@ -22,7 +22,25 @@ let ro = null
 
 function render() {
   if (!chart || !props.option) return
-  chart.setOption(props.option, true)
+  chart.setOption(
+    {
+      color: ['#2563eb', '#0ea5e9', '#c77809', '#16a34a'],
+      textStyle: {
+        color: '#647987',
+        fontFamily: 'Inter, PingFang SC, Microsoft YaHei, system-ui, sans-serif'
+      },
+      ...props.option,
+      tooltip: {
+        backgroundColor: '#ffffff',
+        borderColor: '#dce6eb',
+        borderWidth: 1,
+        textStyle: { color: '#263f4d' },
+        extraCssText: 'box-shadow: 0 10px 24px rgba(20, 42, 54, 0.10); border-radius: 6px;',
+        ...props.option.tooltip
+      }
+    },
+    true
+  )
 }
 
 onMounted(() => {
