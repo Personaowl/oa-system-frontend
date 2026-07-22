@@ -128,6 +128,12 @@ function asText(value) {
   return String(value)
 }
 
+function asStringArray(value) {
+  if (!value) return []
+  const values = Array.isArray(value) ? value : [value]
+  return [...new Set(values.map(asText).filter(Boolean))]
+}
+
 function resolveRole(profile) {
   const rawRole = profile.roleName ?? profile.roleCode ?? profile.role ?? profile.roles ?? profile.authorities ?? ''
   const role = Array.isArray(rawRole) ? rawRole[0] : rawRole
@@ -138,7 +144,7 @@ function resolveRole(profile) {
 function normalizeProfile(source, username) {
   const profile = source?.user ?? source?.profile ?? source ?? {}
   const accountUsername = profile.username || profile.account || username
-  const name = profile.name || profile.realName || profile.nickname || profile.username || profile.account || username
+  const name = profile.displayName || profile.name || profile.realName || profile.nickname || profile.username || profile.account || username
   const department = asText(
     profile.departmentName
       ?? profile.deptName
@@ -153,6 +159,8 @@ function normalizeProfile(source, username) {
     username: accountUsername,
     name,
     role: resolveRole(profile),
+    roles: asStringArray(profile.roles ?? profile.authorities ?? profile.role),
+    permissions: asStringArray(profile.permissions),
     department,
     avatar: avatarsByUsername[accountUsername] || defaultAvatar(name)
   }
@@ -161,6 +169,11 @@ function normalizeProfile(source, username) {
 export function useAuthStore() {
   const isAuthed = computed(() => Boolean(state.token))
   const role = computed(() => state.profile?.role || '')
+
+  function hasPermission(permission) {
+    const permissions = state.profile?.permissions || []
+    return permissions.includes('system:admin') || permissions.includes(permission)
+  }
 
   async function login(username, password) {
     const { body: loginBody, response: loginResponse } = await request(LOGIN_PATH, {
@@ -237,6 +250,7 @@ export function useAuthStore() {
     state: readonly(state),
     isAuthed,
     role,
+    hasPermission,
     login,
     register,
     updateAccount,

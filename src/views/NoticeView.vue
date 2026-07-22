@@ -7,7 +7,7 @@
       </div>
       <div class="tool-row">
         <el-button :icon="Refresh" :loading="loading" @click="loadNotices">刷新</el-button>
-        <el-button v-if="canManage" type="primary" :icon="Plus" @click="openCreate">新建公告</el-button>
+        <el-button v-if="canCreate" type="primary" :icon="Plus" @click="openCreate">新建公告</el-button>
       </div>
     </div>
 
@@ -41,10 +41,10 @@
             <el-table-column v-if="canManage" width="174" fixed="right" label="操作">
               <template #default="{ row }">
                 <div class="notice-actions" @click.stop>
-                  <el-button v-if="row.status === 'DRAFT'" link type="primary" @click="openEdit(row.id)">编辑</el-button>
-                  <el-button v-if="row.status === 'DRAFT'" link type="success" @click="publish(row.id)">发布</el-button>
-                  <el-button v-if="row.status === 'PUBLISHED'" link type="warning" @click="offline(row.id)">下线</el-button>
-                  <el-button v-if="row.status !== 'PUBLISHED'" link type="danger" @click="remove(row.id)">删除</el-button>
+                  <el-button v-if="canUpdate && row.status === 'DRAFT'" link type="primary" @click="openEdit(row.id)">编辑</el-button>
+                  <el-button v-if="canPublish && row.status === 'DRAFT'" link type="success" @click="publish(row.id)">发布</el-button>
+                  <el-button v-if="canOffline && row.status === 'PUBLISHED'" link type="warning" @click="offline(row.id)">下线</el-button>
+                  <el-button v-if="canDelete && row.status !== 'PUBLISHED'" link type="danger" @click="remove(row.id)">删除</el-button>
                 </div>
               </template>
             </el-table-column>
@@ -152,7 +152,12 @@ const editingId = ref(null)
 const detail = ref(null)
 const formRef = ref()
 const form = reactive({ title: '', summary: '', content: '', topFlag: false, status: 'DRAFT' })
-const canManage = computed(() => ['超级管理员', 'HR 人事'].includes(auth.role.value))
+const canManage = computed(() => auth.hasPermission('notice:list'))
+const canCreate = computed(() => auth.hasPermission('notice:create'))
+const canUpdate = computed(() => auth.hasPermission('notice:update'))
+const canDelete = computed(() => auth.hasPermission('notice:delete'))
+const canPublish = computed(() => auth.hasPermission('notice:publish'))
+const canOffline = computed(() => auth.hasPermission('notice:offline'))
 const publishedCount = computed(() => notices.value.filter((item) => item.status === 'PUBLISHED').length)
 const topCount = computed(() => notices.value.filter((item) => item.topFlag).length)
 const rules = {
@@ -300,8 +305,11 @@ async function remove(id) {
 
 async function showDetail(row) {
   try {
-    if (row.status === 'PUBLISHED') await markNoticeRead(row.id)
-    detail.value = canManage.value ? await getManagedNotice(row.id) : await getPublicNotice(row.id)
+    if (row.status === 'PUBLISHED') {
+      detail.value = await markNoticeRead(row.id)
+    } else {
+      detail.value = canManage.value ? await getManagedNotice(row.id) : await getPublicNotice(row.id)
+    }
     detailVisible.value = true
     await loadNotices()
   } catch (error) {
