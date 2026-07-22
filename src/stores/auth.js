@@ -2,12 +2,12 @@ import { computed, reactive, readonly } from 'vue'
 import { loadJSON, saveJSON } from '../utils/storage'
 
 const AUTH_KEY = 'oa-auth'
-const AVATAR_KEY = 'oa-avatar-by-username'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
 const LOGIN_PATH = '/api/v1/auth/login'
 const REGISTER_PATH = '/api/v1/auth/register'
 const CURRENT_USER_PATH = '/api/v1/users/me'
 const ACCOUNT_PATH = '/api/v1/users/me/account'
+const AVATAR_PATH = '/api/v1/users/me/avatar'
 
 const roleMap = {
   ADMIN: '超级管理员',
@@ -26,30 +26,20 @@ const state = reactive({
   profile: null
 })
 
-const avatarsByUsername = loadJSON(AVATAR_KEY, {}) || {}
-
 const saved = loadJSON(AUTH_KEY, null)
 if (saved?.token && saved?.profile && !String(saved.token).startsWith('demo-')) {
   state.token = saved.token
-  state.profile = saved.profile
+  state.profile = { ...saved.profile, avatar: '' }
 } else if (saved) {
   localStorage.removeItem(AUTH_KEY)
 }
 
 function persist() {
   if (state.token && state.profile) {
-    saveJSON(AUTH_KEY, { token: state.token, profile: state.profile })
+    saveJSON(AUTH_KEY, { token: state.token, profile: { ...state.profile, avatar: '' } })
   } else {
     localStorage.removeItem(AUTH_KEY)
   }
-}
-
-function persistAvatars() {
-  saveJSON(AVATAR_KEY, avatarsByUsername)
-}
-
-function defaultAvatar(name) {
-  return String(name).trim().slice(0, 1).toUpperCase() || 'U'
 }
 
 function apiUrl(path) {
@@ -156,13 +146,15 @@ function normalizeProfile(source, username) {
 
   return {
     id: profile.id ?? profile.userId ?? profile.uid ?? username,
+    departmentId: profile.departmentId ?? profile.deptId ?? null,
     username: accountUsername,
     name,
     role: resolveRole(profile),
     roles: asStringArray(profile.roles ?? profile.authorities ?? profile.role),
     permissions: asStringArray(profile.permissions),
     department,
-    avatar: avatarsByUsername[accountUsername] || defaultAvatar(name)
+    avatarUrl: profile.avatarUrl || null,
+    avatar: ''
   }
 }
 
@@ -189,6 +181,7 @@ export function useAuthStore() {
     state.token = token || `cookie-session-${Date.now()}`
     state.profile = normalizeProfile(unwrap(userBody), username)
     persist()
+    await refreshAvatar()
     return state.profile
   }
 
@@ -200,47 +193,58 @@ export function useAuthStore() {
     })
   }
 
-  async function updateAccount({ username, currentPassword, newPassword }) {
-    const previousUsername = state.profile?.username
-    const payload = { currentPassword }
-    if (username?.trim()) payload.username = username.trim()
-    if (newPassword) payload.newPassword = newPassword
-
-    const { body } = await request(ACCOUNT_PATH, {
+  async function updatePassword({ currentPassword, newPassword }) {
+    const username = state.profile?.username
+    await request(ACCOUNT_PATH, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${state.token}`
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ currentPassword, newPassword })
     })
-
-    const updated = unwrap(body)
-    const nextUsername = updated?.username || payload.username || state.profile?.username
-    if (previousUsername && nextUsername && previousUsername !== nextUsername && avatarsByUsername[previousUsername]) {
-      avatarsByUsername[nextUsername] = avatarsByUsername[previousUsername]
-      delete avatarsByUsername[previousUsername]
-      persistAvatars()
-    }
-    await login(nextUsername, newPassword || currentPassword)
+    await login(username, newPassword)
     return state.profile
   }
 
-  function setAvatar(avatar) {
-    const username = state.profile?.username
-    if (!username || !state.profile) return
+  function revokeAvatar() {
+    if (state.profile?.avatar?.startsWith?.('blob:')) URL.revokeObjectURL(state.profile.avatar)
+    if (state.profile) state.profile.avatar = ''
+  }
 
-    if (avatar) {
-      avatarsByUsername[username] = avatar
-    } else {
-      delete avatarsByUsername[username]
+  async function refreshAvatar() {
+    revokeAvatar()
+    if (!state.profile?.avatarUrl || !state.token) return
+    const response = await fetch(apiUrl(AVATAR_PATH), {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: state.token.startsWith('cookie-session-') ? {} : { Authorization: `Bearer ${state.token}` }
+    })
+    if (response.status === 401) {
+      logout()
+      window.dispatchEvent(new Event('auth-expired'))
+      throw new Error('登录状态已过期，请重新登录')
     }
-    state.profile.avatar = avatar || defaultAvatar(state.profile.name)
-    persistAvatars()
+    if (!response.ok) throw new Error('头像读取失败')
+    state.profile.avatar = URL.createObjectURL(await response.blob())
+  }
+
+  async function uploadAvatar(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { body } = await request(AVATAR_PATH, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${state.token}` },
+      body: formData
+    })
+    const currentAvatar = state.profile?.avatar || ''
+    state.profile = { ...normalizeProfile(unwrap(body), state.profile?.username), avatar: currentAvatar }
     persist()
+    await refreshAvatar()
   }
 
   function logout() {
+    revokeAvatar()
     state.token = ''
     state.profile = null
     persist()
@@ -253,8 +257,9 @@ export function useAuthStore() {
     hasPermission,
     login,
     register,
-    updateAccount,
-    setAvatar,
+    updatePassword,
+    refreshAvatar,
+    uploadAvatar,
     logout
   }
 }

@@ -2,282 +2,233 @@
   <div class="content-grid org-page">
     <div class="page-head">
       <div>
-        <h1 class="page-title">组织权限</h1>
-        <p class="page-subtitle">维护部门、员工与角色信息，模拟 user-service 的基础管理能力。</p>
+        <h1 class="page-title">部门管理</h1>
+        <p class="page-subtitle">维护企业部门层级、负责人和角色权限。</p>
       </div>
       <div class="tool-row">
-        <el-button type="primary" :icon="Plus" @click="openDepartment()">新增部门</el-button>
-        <el-button :icon="UserFilled" @click="openEmployee()">新增员工</el-button>
-      </div>
-    </div>
-
-    <div class="panel section">
-      <SectionTitle title="RBAC 角色权限" subtitle="前端菜单和路由会根据当前账号角色动态过滤。" />
-      <div class="role-grid">
-        <div v-for="item in roleMatrix" :key="item.role" class="panel-soft role-item">
-          <div class="role-title">{{ item.role }}</div>
-          <div class="role-tags">
-            <el-tag v-for="permission in item.permissions" :key="permission" effect="plain" size="small">{{ permission }}</el-tag>
-          </div>
-        </div>
+        <el-button :loading="loading" @click="loadAll">刷新</el-button>
+        <el-button :icon="Lock" @click="permissionDialogVisible = true">角色权限</el-button>
+        <el-button v-if="canCreateDepartment" type="primary" :icon="Plus" @click="openDepartment()">新增部门</el-button>
       </div>
     </div>
 
     <div class="org-panels">
       <section class="panel section">
-        <SectionTitle title="部门管理" subtitle="维护组织结构、负责人和部门人数。" />
+        <SectionTitle title="部门管理" subtitle="人数由部门下的有效员工实时统计，无需手工录入。" />
         <div class="table-wrap">
-          <el-table class="department-table" :data="oa.state.departments" border>
+          <el-table v-loading="loading" class="department-table" :data="departments" border>
             <el-table-column prop="name" label="部门名称" min-width="180" />
-            <el-table-column prop="manager" label="负责人" width="150" />
-            <el-table-column prop="people" label="人数" width="110" align="center" />
-            <el-table-column label="操作" width="150" fixed="right">
+            <el-table-column label="负责人" min-width="150">
+              <template #default="{ row }">{{ row.managerNames?.join('、') || '未指定' }}</template>
+            </el-table-column>
+            <el-table-column prop="employeeCount" label="人数" width="90" align="center" />
+            <el-table-column label="状态" width="90">
+              <template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '停用' }}</el-tag></template>
+            </el-table-column>
+            <el-table-column v-if="canUpdateDepartment || canDeleteDepartment" label="操作" width="150" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" @click="openDepartment(row)">编辑</el-button>
-                <el-button link type="danger" @click="removeDepartment(row)">删除</el-button>
+                <el-button v-if="canUpdateDepartment" link type="primary" @click="openDepartment(row)">编辑</el-button>
+                <el-button v-if="canDeleteDepartment" link type="danger" @click="removeDepartment(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
         </div>
       </section>
 
-      <section class="panel section">
-        <SectionTitle title="员工管理" subtitle="按姓名、工号或部门筛选员工信息。">
-          <template #extra>
-            <div class="org-filter-row">
-              <el-input v-model="keyword" clearable placeholder="姓名 / 工号" class="org-search" />
-              <el-select v-model="departmentFilter" clearable placeholder="全部部门" class="org-department-filter">
-                <el-option v-for="item in departmentOptions" :key="item.value" :label="item.label" :value="item.value" />
-              </el-select>
-            </div>
-          </template>
-        </SectionTitle>
-        <div class="table-wrap">
-          <el-table class="employee-table" :data="filteredEmployees" border height="410">
-            <el-table-column prop="name" label="姓名" width="110" />
-            <el-table-column prop="jobNo" label="工号" width="130" />
-            <el-table-column prop="department" label="部门" min-width="150" />
-            <el-table-column prop="role" label="角色" min-width="150" />
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <span class="status-pill" :class="row.status === '在岗' ? 'is-success' : 'is-warning'">{{ row.status }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="phone" label="联系电话" width="150" />
-            <el-table-column label="操作" width="150" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="openEmployee(row)">编辑</el-button>
-                <el-button link type="danger" @click="removeEmployee(row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </section>
     </div>
 
-    <el-dialog v-model="departmentDialogVisible" :title="departmentForm.id ? '编辑部门' : '新增部门'" width="440px" destroy-on-close>
+    <el-dialog v-model="departmentDialogVisible" :title="departmentForm.id ? '编辑部门' : '新增部门'" width="460px" destroy-on-close>
       <el-form ref="departmentFormRef" :model="departmentForm" :rules="departmentRules" label-position="top">
-        <el-form-item label="部门名称" prop="name">
-          <el-input v-model="departmentForm.name" maxlength="20" show-word-limit />
+        <el-form-item label="部门名称" prop="name"><el-input v-model="departmentForm.name" maxlength="64" show-word-limit /></el-form-item>
+        <el-form-item label="上级部门">
+          <el-select v-model="departmentForm.parentId" clearable placeholder="无（根部门）" style="width: 100%">
+            <el-option v-for="item in parentDepartmentOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="负责人" prop="manager">
-          <el-input v-model="departmentForm.manager" maxlength="20" />
+        <el-form-item label="负责人">
+          <el-select v-model="departmentForm.managerId" clearable filterable placeholder="可选，请选择部门主管" no-data-text="暂无可选的部门主管" style="width: 100%">
+            <el-option v-for="item in managerOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="初始人数" prop="people">
-          <el-input-number v-model="departmentForm.people" :min="0" controls-position="right" style="width: 100%" />
+        <el-form-item>
+          <template #label>
+            <span class="field-label-with-help">显示顺序
+              <el-tooltip content="用于控制部门在列表中的先后顺序，数值越小越靠前；相同时按创建顺序排列。" placement="top">
+                <el-icon><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </span>
+          </template>
+          <el-input-number v-model="departmentForm.sortOrder" :min="0" controls-position="right" style="width: 100%" />
+          <div class="form-help">例如：总部填 0、研发部填 10、行政部填 20，后续可在中间插入新部门。</div>
         </el-form-item>
+        <el-form-item label="状态"><el-switch v-model="departmentForm.enabled" active-text="启用" inactive-text="停用" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="departmentDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveDepartment">保存</el-button>
+        <el-button type="primary" :loading="saving" @click="saveDepartment">保存</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="employeeDialogVisible" :title="employeeForm.id ? '编辑员工' : '新增员工'" width="620px" destroy-on-close>
-      <el-form ref="employeeFormRef" :model="employeeForm" :rules="employeeRules" label-position="top" class="employee-form-grid">
-        <el-form-item label="姓名" prop="name"><el-input v-model="employeeForm.name" /></el-form-item>
-        <el-form-item label="工号" prop="jobNo"><el-input v-model="employeeForm.jobNo" /></el-form-item>
-        <el-form-item label="联系电话" prop="phone"><el-input v-model="employeeForm.phone" /></el-form-item>
-        <el-form-item label="部门" prop="department">
-          <el-select v-model="employeeForm.department" style="width: 100%">
-            <el-option v-for="item in departmentOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="角色" prop="role">
-          <el-select v-model="employeeForm.role" style="width: 100%">
-            <el-option v-for="item in roleOptions" :key="item" :label="item" :value="item" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="employeeForm.status">
-            <el-radio value="在岗">在岗</el-radio>
-            <el-radio value="试用">试用</el-radio>
-            <el-radio value="离职">离职</el-radio>
-          </el-radio-group>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="employeeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveEmployee">保存</el-button>
-      </template>
+    <el-dialog v-model="permissionDialogVisible" title="RBAC 角色权限" width="min(820px, 92vw)" destroy-on-close>
+      <div class="rbac-overview">
+        <div>
+          <div class="rbac-overview-title">角色权限概览</div>
+          <div class="rbac-overview-desc">权限数据来自 user-service，授权变化后用户重新登录即可生效。</div>
+        </div>
+        <div class="rbac-stat-list">
+          <div class="rbac-stat"><strong>{{ roles.length }}</strong><span>个角色</span></div>
+          <div class="rbac-stat"><strong>{{ permissions.length }}</strong><span>项权限</span></div>
+        </div>
+      </div>
+      <el-skeleton :loading="loading" animated :rows="4">
+        <el-collapse accordion class="role-collapse">
+          <el-collapse-item v-for="item in roleMatrix" :key="item.id" :name="item.id">
+            <template #title>
+              <div class="role-collapse-title">
+                <span class="role-avatar" aria-hidden="true"></span>
+                <span class="role-identity"><strong>{{ item.name }}</strong><small>{{ item.code }}</small></span>
+                <el-tag round effect="plain" size="small">{{ item.permissions.length }} 项权限</el-tag>
+              </div>
+            </template>
+            <div class="permission-list">
+              <el-tag v-for="permission in item.permissions" :key="permission.id" effect="light" round>
+                {{ permission.name }}
+              </el-tag>
+              <el-empty v-if="!item.permissions.length" description="该角色暂未分配权限" :image-size="56" />
+            </div>
+          </el-collapse-item>
+        </el-collapse>
+      </el-skeleton>
     </el-dialog>
+
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, UserFilled } from '@element-plus/icons-vue'
-import { useOaStore } from '../stores/oa'
+import { Lock, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { useAuthStore } from '../stores/auth'
+import {
+  createDepartment, deleteDepartment,
+  listDepartments, listPermissions, listRoles, listUsers,
+  updateDepartment
+} from '../api/organization'
 import SectionTitle from '../components/SectionTitle.vue'
 
-const oa = useOaStore()
-const keyword = ref('')
-const departmentFilter = ref('')
+const auth = useAuthStore()
+const loading = ref(false)
+const saving = ref(false)
+const departments = ref([])
+const employees = ref([])
+const roles = ref([])
+const permissions = ref([])
 const departmentDialogVisible = ref(false)
-const employeeDialogVisible = ref(false)
+const permissionDialogVisible = ref(false)
 const departmentFormRef = ref()
-const employeeFormRef = ref()
+const departmentForm = reactive({ id: '', name: '', parentId: null, managerId: null, sortOrder: 0, enabled: true })
 
-const departmentForm = reactive({ id: '', name: '', manager: '', people: 0 })
-const employeeForm = reactive({ id: '', name: '', jobNo: '', department: '', role: '', status: '在岗', phone: '' })
-const roleOptions = ['超级管理员', 'HR 人事', '部门主管', '普通员工']
-const roleMatrix = [
-  { role: '超级管理员', permissions: ['全部菜单', '组织权限', '公告发布', '数据看板'] },
-  { role: 'HR 人事', permissions: ['组织权限', '公告发布', '数据看板', '考勤查询'] },
-  { role: '部门主管', permissions: ['部门审批', '公告查看', '数据看板', '考勤打卡'] },
-  { role: '普通员工', permissions: ['考勤打卡', '提交审批', '公告查看'] }
-]
-
-const departmentRules = {
-  name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }],
-  manager: [{ required: true, message: '请输入负责人', trigger: 'blur' }]
-}
-const employeeRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  jobNo: [{ required: true, message: '请输入工号', trigger: 'blur' }],
-  department: [{ required: true, message: '请选择部门', trigger: 'change' }],
-  role: [{ required: true, message: '请选择角色', trigger: 'change' }],
-  status: [{ required: true, message: '请选择状态', trigger: 'change' }]
-}
-
-const departmentOptions = computed(() => oa.departmentOptions.value)
-const filteredEmployees = computed(() => {
-  const needle = keyword.value.trim().toLowerCase()
-  return oa.state.employees.filter((item) => {
-    const matchedKeyword = !needle || item.name.toLowerCase().includes(needle) || item.jobNo.toLowerCase().includes(needle)
-    const matchedDepartment = !departmentFilter.value || item.department === departmentFilter.value
-    return matchedKeyword && matchedDepartment
-  })
+const canCreateDepartment = computed(() => auth.hasPermission('sys:dept:create'))
+const canUpdateDepartment = computed(() => auth.hasPermission('sys:dept:update'))
+const canDeleteDepartment = computed(() => auth.hasPermission('sys:dept:delete'))
+const departmentOptions = computed(() => departments.value.filter((item) => item.status === 1).map((item) => ({ label: item.name, value: item.id })))
+const parentDepartmentOptions = computed(() => departmentOptions.value.filter((item) => item.value !== departmentForm.id))
+const managerOptions = computed(() => employees.value
+  .filter((item) => item.status === 1 && (item.roleCodes || []).some((code) => ['MANAGER', 'ROLE_MANAGER'].includes(String(code).toUpperCase())))
+  .map((item) => ({ label: `${item.displayName}（${item.username}）`, value: item.id })))
+const roleMatrix = computed(() => {
+  const permissionMap = new Map(permissions.value.map((item) => [String(item.id), item]))
+  return roles.value.map((role) => ({ ...role, permissions: (role.permissionIds || []).map((id) => permissionMap.get(String(id))).filter(Boolean) }))
 })
+const departmentRules = { name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }] }
+
+async function loadAll() {
+  loading.value = true
+  try {
+    const [departmentData, userPage, roleData, permissionData] = await Promise.all([
+      listDepartments(), listUsers({ page: 1, size: 100 }), listRoles(), listPermissions()
+    ])
+    departments.value = departmentData || []
+    employees.value = userPage?.records || []
+    roles.value = roleData || []
+    permissions.value = permissionData || []
+  } catch (error) {
+    ElMessage.error(error.message || '组织数据加载失败')
+  } finally { loading.value = false }
+}
 
 function openDepartment(row = null) {
-  Object.assign(departmentForm, row || { id: '', name: '', manager: '', people: 0 })
+  Object.assign(departmentForm, row ? {
+    id: row.id,
+    name: row.name,
+    parentId: row.parentId || null,
+    managerId: row.managerId || null,
+    sortOrder: row.sortOrder || 0,
+    enabled: row.status === 1
+  } : { id: '', name: '', parentId: null, managerId: null, sortOrder: 0, enabled: true })
   departmentDialogVisible.value = true
 }
 
-function openEmployee(row = null) {
-  Object.assign(employeeForm, row || {
-    id: '',
-    name: '',
-    jobNo: `EMP-${String(oa.state.employees.length + 1).padStart(4, '0')}`,
-    department: departmentOptions.value[0]?.value || '',
-    role: '普通员工',
-    status: '在岗',
-    phone: ''
-  })
-  employeeDialogVisible.value = true
-}
-
 async function saveDepartment() {
-  const valid = await departmentFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  oa.upsertDepartment({ ...departmentForm })
-  departmentDialogVisible.value = false
-  ElMessage.success('部门信息已保存')
-}
-
-async function saveEmployee() {
-  const valid = await employeeFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  const duplicated = oa.state.employees.some((item) => item.jobNo === employeeForm.jobNo && item.id !== employeeForm.id)
-  if (duplicated) {
-    ElMessage.warning('工号已存在，请更换后保存')
-    return
-  }
-  oa.upsertEmployee({ ...employeeForm })
-  employeeDialogVisible.value = false
-  ElMessage.success('员工信息已保存')
+  if (!(await departmentFormRef.value?.validate().catch(() => false))) return
+  saving.value = true
+  try {
+    const payload = {
+      name: departmentForm.name,
+      parentId: departmentForm.parentId || 0,
+      managerId: departmentForm.managerId || null,
+      sortOrder: departmentForm.sortOrder,
+      status: departmentForm.enabled ? 1 : 0
+    }
+    if (departmentForm.id) await updateDepartment(departmentForm.id, payload)
+    else await createDepartment(payload)
+    departmentDialogVisible.value = false
+    ElMessage.success('部门信息已保存')
+    await loadAll()
+  } catch (error) { ElMessage.error(error.message || '保存失败') } finally { saving.value = false }
 }
 
 async function removeDepartment(row) {
-  if (oa.state.employees.some((item) => item.department === row.name)) {
-    ElMessage.warning('该部门仍有关联员工，无法删除')
-    return
-  }
   try {
     await ElMessageBox.confirm(`确认删除“${row.name}”吗？`, '删除部门', { type: 'warning' })
-    oa.removeDepartment(row.id)
+    await deleteDepartment(row.id)
     ElMessage.success('部门已删除')
-  } catch {
-    // User cancelled the confirmation dialog.
-  }
+    await loadAll()
+  } catch (error) { if (error !== 'cancel' && error !== 'close') ElMessage.error(error.message || '删除失败') }
 }
 
-async function removeEmployee(row) {
-  try {
-    await ElMessageBox.confirm(`确认删除员工“${row.name}”吗？`, '删除员工', { type: 'warning' })
-    oa.removeEmployee(row.id)
-    ElMessage.success('员工已删除')
-  } catch {
-    // User cancelled the confirmation dialog.
-  }
-}
+onMounted(loadAll)
 </script>
 
 <style scoped>
-.org-panels {
-  display: grid;
-  gap: 16px;
-}
-
-.table-wrap {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.department-table {
-  min-width: 560px;
-}
-
-.employee-table {
-  min-width: 880px;
-}
-
-.org-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.org-search {
-  width: 168px;
-}
-
-.org-department-filter {
-  width: 138px;
-}
-
+.org-panels { display: grid; gap: 16px; }
+.table-wrap { width: 100%; overflow-x: auto; }
+.department-table { min-width: 620px; }
+.employee-table { min-width: 920px; }
+.org-filter-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.org-search { width: 180px; }
+.org-department-filter { width: 150px; }
+.field-label-with-help { display: inline-flex; align-items: center; gap: 5px; }
+.field-label-with-help .el-icon { color: var(--muted); cursor: help; }
+.form-help { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.rbac-overview { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; margin-bottom: 16px; border: 1px solid #dbeafe; border-radius: 14px; background: linear-gradient(135deg, #eff6ff, #f8fbff); }
+.rbac-overview-title { color: #173968; font-size: 18px; font-weight: 700; }
+.rbac-overview-desc { margin-top: 5px; color: var(--muted); font-size: 13px; }
+.rbac-stat-list { display: flex; gap: 10px; flex-shrink: 0; }
+.rbac-stat { min-width: 82px; padding: 10px 14px; border-radius: 10px; background: rgb(255 255 255 / 82%); text-align: center; box-shadow: 0 4px 14px rgb(37 99 235 / 8%); }
+.rbac-stat strong { display: block; color: #2563eb; font-size: 22px; line-height: 1.1; }
+.rbac-stat span { color: var(--muted); font-size: 12px; }
+.role-collapse { max-height: 52vh; overflow-y: auto; border-top: 0; }
+.role-collapse-title { display: flex; align-items: center; gap: 12px; width: calc(100% - 26px); padding: 7px 2px; }
+.role-avatar { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 0 4px rgb(59 130 246 / 10%); }
+.role-identity { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.35; }
+.role-identity strong { color: var(--text); font-size: 14px; }
+.role-identity small { color: var(--muted); font-size: 11px; font-weight: 500; }
+.permission-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 46px 18px; }
 @media (max-width: 760px) {
-  .org-filter-row {
-    width: 100%;
-    justify-content: stretch;
-  }
-
-  .org-search,
-  .org-department-filter {
-    flex: 1 1 150px;
-  }
+  .org-filter-row { width: 100%; justify-content: stretch; }
+  .org-search, .org-department-filter { flex: 1 1 150px; }
+  .rbac-overview { align-items: flex-start; flex-direction: column; }
+  .permission-list { padding-left: 8px; }
 }
 </style>

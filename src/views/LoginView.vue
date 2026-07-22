@@ -48,34 +48,34 @@
 
           <div class="login-preview-stats">
             <div>
-              <span>待审批</span>
-              <strong>03</strong>
+              <span>流程审批</span>
+              <strong>实时</strong>
             </div>
             <div>
-              <span>已打卡</span>
-              <strong>86%</strong>
+              <span>考勤记录</span>
+              <strong>同步</strong>
             </div>
             <div>
-              <span>新通知</span>
-              <strong>05</strong>
+              <span>公告通知</span>
+              <strong>触达</strong>
             </div>
           </div>
 
           <div class="login-preview-list">
             <div class="login-task">
               <div class="login-task-icon is-teal"><el-icon><DocumentChecked /></el-icon></div>
-              <div><strong>审批待办</strong><span>3 条申请等待处理</span></div>
-              <time>10:30</time>
+              <div><strong>审批待办</strong><span>请假、加班申请全流程跟踪</span></div>
+              <time>实时</time>
             </div>
             <div class="login-task">
               <div class="login-task-icon is-amber"><el-icon><Calendar /></el-icon></div>
-              <div><strong>考勤汇总</strong><span>研发部异常数据已更新</span></div>
-              <time>14:00</time>
+              <div><strong>考勤汇总</strong><span>按权限查看个人或部门数据</span></div>
+              <time>同步</time>
             </div>
             <div class="login-task">
               <div class="login-task-icon is-blue"><el-icon><Bell /></el-icon></div>
-              <div><strong>公告通知</strong><span>本周联调安排已发布</span></div>
-              <time>今天</time>
+              <div><strong>公告通知</strong><span>发布、阅读状态及时更新</span></div>
+              <time>在线</time>
             </div>
           </div>
         </section>

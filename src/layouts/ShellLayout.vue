@@ -18,10 +18,22 @@
         text-color="#d9e2f2"
         active-text-color="#bfdbfe"
       >
-        <el-menu-item v-for="item in visibleMenuItems" :key="item.path" :index="item.path">
-          <el-icon><component :is="item.icon" /></el-icon>
-          <span>{{ item.label }}</span>
-        </el-menu-item>
+        <template v-for="item in visibleMenuItems" :key="item.path || item.label">
+          <el-sub-menu v-if="item.children?.length" :index="item.path || item.label">
+            <template #title>
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+            </template>
+            <el-menu-item v-for="child in item.children" :key="child.path" :index="child.path">
+              <el-icon><component :is="child.icon" /></el-icon>
+              <span>{{ child.label }}</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-menu-item v-else :index="item.path">
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ item.label }}</span>
+          </el-menu-item>
+        </template>
       </el-menu>
 
       <el-button class="sidebar-ai-launch" type="primary" :icon="ChatDotRound" @click="openAiAssistant">
@@ -88,23 +100,16 @@
                 <el-upload action="#" :auto-upload="false" :show-file-list="false" accept="image/png,image/jpeg,image/webp" :on-change="handleAvatarSelected">
                   <el-button :icon="Upload">上传新头像</el-button>
                 </el-upload>
-                <el-button link type="primary" :disabled="!avatarDraftIsImage" @click="restoreDefaultAvatar">恢复默认</el-button>
               </div>
               <span>支持 PNG、JPG、WebP，文件不超过 1 MB</span>
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="当前用户名">
-          <el-input :model-value="auth.state.profile?.username" disabled />
-        </el-form-item>
-        <el-form-item label="新用户名" prop="username">
-          <el-input v-model="accountForm.username" :prefix-icon="UserFilled" autocomplete="username" placeholder="不修改请留空" />
-        </el-form-item>
         <el-form-item label="当前密码" prop="currentPassword">
-          <el-input v-model="accountForm.currentPassword" :prefix-icon="Lock" autocomplete="current-password" show-password type="password" placeholder="确认身份后保存" />
+          <el-input v-model="accountForm.currentPassword" :prefix-icon="Lock" autocomplete="current-password" show-password type="password" placeholder="修改密码时填写" />
         </el-form-item>
         <el-form-item label="新密码" prop="newPassword">
-          <el-input v-model="accountForm.newPassword" :prefix-icon="Lock" autocomplete="new-password" show-password type="password" placeholder="不修改请留空" />
+          <el-input v-model="accountForm.newPassword" :prefix-icon="Lock" autocomplete="new-password" show-password type="password" placeholder="6-72 位，不修改请留空" />
         </el-form-item>
         <el-form-item v-if="accountForm.newPassword" label="确认新密码" prop="confirmPassword">
           <el-input v-model="accountForm.confirmPassword" :prefix-icon="Lock" autocomplete="new-password" show-password type="password" placeholder="再次输入新密码" @keyup.enter="handleAccountUpdate" />
@@ -198,7 +203,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onErrorCaptured, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onErrorCaptured, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -210,7 +215,6 @@ import {
   TrendCharts,
   FolderOpened,
   ChatLineSquare,
-  CreditCard,
   SwitchButton,
   RefreshRight,
   EditPen,
@@ -243,18 +247,18 @@ const aiSessionId = ref(null)
 const aiMessagesRef = ref()
 const accountFormRef = ref()
 const accountSaving = ref(false)
-const accountForm = reactive({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' })
+const accountForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 const now = ref(new Date())
 const avatarDraft = ref('')
 const avatarChanged = ref(false)
-const hasAccountChanges = computed(() => Boolean(accountForm.username.trim() || accountForm.newPassword))
-const isImageAvatar = (value) => typeof value === 'string' && value.startsWith('data:image/')
+const avatarFile = ref(null)
+const hasPasswordChange = computed(() => Boolean(accountForm.newPassword))
+const isImageAvatar = (value) => typeof value === 'string' && (value.startsWith('data:image/') || value.startsWith('blob:'))
 const avatarSrc = computed(() => (isImageAvatar(auth.state.profile?.avatar) ? auth.state.profile.avatar : ''))
 const avatarDraftSrc = computed(() => (isImageAvatar(avatarDraft.value) ? avatarDraft.value : ''))
 const avatarLabel = computed(() => auth.state.profile?.avatar && !isImageAvatar(auth.state.profile.avatar)
   ? auth.state.profile.avatar
   : String(auth.state.profile?.name || 'U').slice(0, 1).toUpperCase())
-const avatarDraftIsImage = computed(() => isImageAvatar(avatarDraft.value))
 const aiInput = ref('')
 const aiDomain = ref('ALL')
 const aiDomains = [
@@ -268,8 +272,7 @@ const aiMessages = ref([
   { role: 'assistant', content: '你好，我是 OA 助手。我会基于已入库的办公制度为你解答。' }
 ])
 const accountRules = {
-  username: [{ pattern: /^$|^[A-Za-z0-9_]{3,32}$/, message: '用户名需为 3-32 位字母、数字或下划线', trigger: 'blur' }],
-  currentPassword: [{ validator: (_, value, callback) => (!hasAccountChanges.value || value ? callback() : callback(new Error('请输入当前密码'))), trigger: 'blur' }],
+  currentPassword: [{ validator: (_, value, callback) => (!hasPasswordChange.value || value ? callback() : callback(new Error('请输入当前密码'))), trigger: 'blur' }],
   newPassword: [{ pattern: /^$|^.{6,72}$/, message: '新密码长度为 6-72 位', trigger: 'blur' }],
   confirmPassword: [{ validator: (_, value, callback) => (!accountForm.newPassword || value === accountForm.newPassword ? callback() : callback(new Error('两次输入的新密码不一致'))), trigger: 'blur' }]
 }
@@ -280,16 +283,21 @@ const clockTimer = window.setInterval(() => {
 }, 1000)
 const menuItems = [
   { path: '/dashboard', label: '总览', icon: DataLine },
-  { path: '/org', label: '组织权限', icon: UserFilled, roles: ['超级管理员', 'HR 人事'] },
+  { path: '/org', label: '组织权限', icon: UserFilled, children: [
+    { path: '/org/departments', label: '部门管理', icon: Collection, roles: ['超级管理员', 'HR 人事'] },
+    { path: '/org/employees', label: '员工管理', icon: UserFilled, roles: ['超级管理员', 'HR 人事', '部门主管'] }
+  ] },
   { path: '/attendance', label: '考勤打卡', icon: Calendar },
   { path: '/approval', label: '审批流程', icon: DocumentChecked },
   { path: '/notice', label: '公告通知', icon: Bell },
   { path: '/board', label: '数据看板', icon: TrendCharts, roles: ['超级管理员', 'HR 人事', '部门主管'] },
   { path: '/ai-knowledge', label: '知识文档', icon: FolderOpened, roles: ['超级管理员'] },
-  { path: '/ai-logs', label: 'AI 问答日志', icon: ChatLineSquare, roles: ['超级管理员'] },
-  { path: '/payroll', label: '工资管理', icon: CreditCard, roles: ['超级管理员', '部门主管'] }
+  { path: '/ai-logs', label: 'AI 问答日志', icon: ChatLineSquare, roles: ['超级管理员'] }
 ]
-const visibleMenuItems = computed(() => menuItems.filter((item) => !item.roles || item.roles.includes(auth.role.value)))
+const visibleMenuItems = computed(() => menuItems.map((item) => ({
+  ...item,
+  children: item.children?.filter((child) => !child.roles || child.roles.includes(auth.role.value))
+})).filter((item) => (!item.roles || item.roles.includes(auth.role.value)) && (!item.children || item.children.length)))
 
 watch(
   () => route.fullPath,
@@ -306,6 +314,10 @@ onErrorCaptured((error, instance, info) => {
 
 onUnmounted(() => {
   window.clearInterval(clockTimer)
+})
+
+onMounted(() => {
+  auth.refreshAvatar().catch(() => {})
 })
 
 function retryPage() {
@@ -428,12 +440,12 @@ function handleAccountCommand(command) {
     handleLogout()
     return
   }
-  accountForm.username = ''
   accountForm.currentPassword = ''
   accountForm.newPassword = ''
   accountForm.confirmPassword = ''
   avatarDraft.value = auth.state.profile?.avatar || ''
   avatarChanged.value = false
+  avatarFile.value = null
   accountDialogVisible.value = true
 }
 
@@ -453,33 +465,29 @@ function handleAvatarSelected(file) {
   reader.onload = () => {
     avatarDraft.value = String(reader.result)
     avatarChanged.value = true
+    avatarFile.value = rawFile
   }
   reader.readAsDataURL(rawFile)
 }
 
-function restoreDefaultAvatar() {
-  avatarDraft.value = ''
-  avatarChanged.value = avatarDraftIsImage.value || isImageAvatar(auth.state.profile?.avatar)
-}
-
 async function handleAccountUpdate() {
-  if (!hasAccountChanges.value && !avatarChanged.value) {
-    ElMessage.warning('请选择头像或输入新的账户信息')
+  if (!hasPasswordChange.value && !avatarChanged.value) {
+    ElMessage.warning('请选择头像或输入新密码')
     return
   }
 
-  if (hasAccountChanges.value) {
+  if (hasPasswordChange.value) {
     const valid = await accountFormRef.value?.validate().catch(() => false)
     if (!valid) return
   }
 
   accountSaving.value = true
   try {
-    if (hasAccountChanges.value) {
-      await auth.updateAccount(accountForm)
+    if (hasPasswordChange.value) {
+      await auth.updatePassword(accountForm)
     }
-    if (avatarChanged.value) {
-      auth.setAvatar(avatarDraft.value)
+    if (avatarFile.value) {
+      await auth.uploadAvatar(avatarFile.value)
     }
     accountDialogVisible.value = false
     ElMessage.success('账户信息已更新')
