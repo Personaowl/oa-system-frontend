@@ -7,6 +7,8 @@ import AttendanceView from '../views/AttendanceView.vue'
 import ApprovalView from '../views/ApprovalView.vue'
 import NoticeView from '../views/NoticeView.vue'
 import BoardView from '../views/BoardView.vue'
+import AiKnowledgeView from '../views/AiKnowledgeView.vue'
+import AiLogView from '../views/AiLogView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
@@ -21,7 +23,9 @@ const routes = [
       { path: 'attendance', name: 'attendance', component: AttendanceView, meta: { title: '考勤打卡' } },
       { path: 'approval', name: 'approval', component: ApprovalView, meta: { title: '审批流程' } },
       { path: 'notice', name: 'notice', component: NoticeView, meta: { title: '公告通知' } },
-      { path: 'board', name: 'board', component: BoardView, meta: { title: '数据看板', roles: ['超级管理员', 'HR 人事', '部门主管'] } }
+      { path: 'board', name: 'board', component: BoardView, meta: { title: '数据看板', roles: ['超级管理员', 'HR 人事', '部门主管'] } },
+      { path: 'ai-knowledge', name: 'ai-knowledge', component: AiKnowledgeView, meta: { title: '知识文档管理', roles: ['超级管理员'] } },
+      { path: 'ai-logs', name: 'ai-logs', component: AiLogView, meta: { title: 'AI 问答日志', roles: ['超级管理员'] } }
     ]
   }
 ]

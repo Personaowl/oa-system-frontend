@@ -1,0 +1,34 @@
+<template>
+  <div class="content-grid ai-log-page">
+    <div class="page-head"><div><h1 class="page-title">AI 问答日志</h1><p class="page-subtitle">审计用户问答记录、知识库命中情况与回答引用。</p></div><div class="tool-row"><el-button :icon="Refresh" :loading="loading" @click="loadLogs">刷新</el-button></div></div>
+    <section class="panel section">
+      <SectionTitle title="问答记录" subtitle="可按关键词、知识域与知识库命中状态筛选。"><template #extra><div class="log-filters"><el-input v-model="filters.keyword" clearable placeholder="问题 / 回答关键词" @keyup.enter="search" /><el-select v-model="filters.knowledgeDomain" clearable placeholder="全部知识域"><el-option v-for="item in domains" :key="item.value" :label="item.label" :value="item.value" /></el-select><el-select v-model="filters.hitFlag" clearable placeholder="全部命中状态"><el-option label="已命中" :value="true" /><el-option label="未命中" :value="false" /></el-select><el-button type="primary" @click="search">查询</el-button></div></template></SectionTitle>
+      <el-table v-loading="loading" :data="logs" row-key="id"><el-table-column min-width="230" label="用户问题"><template #default="{ row }"><div class="log-text"><strong>{{ row.question }}</strong><span>{{ row.answer }}</span></div></template></el-table-column><el-table-column prop="userId" width="92" label="用户 ID" /><el-table-column width="110" label="知识域"><template #default="{ row }"><el-tag effect="plain">{{ domainLabel(row.knowledgeDomain) }}</el-tag></template></el-table-column><el-table-column width="92" label="命中"><template #default="{ row }"><el-tag :type="row.hitFlag ? 'success' : 'warning'" effect="plain">{{ row.hitFlag ? '已命中' : '未命中' }}</el-tag></template></el-table-column><el-table-column width="90" label="置信度"><template #default="{ row }">{{ score(row.confidenceScore) }}</template></el-table-column><el-table-column width="104" label="耗时"><template #default="{ row }">{{ row.latencyMs ? `${row.latencyMs} ms` : '-' }}</template></el-table-column><el-table-column width="154" label="提问时间"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column><el-table-column fixed="right" width="76" label="操作"><template #default="{ row }"><el-button link type="primary" @click="showDetail(row.id)">详情</el-button></template></el-table-column></el-table>
+      <div class="table-pagination"><el-pagination v-model:current-page="page" :page-size="size" layout="total, prev, pager, next" :total="total" @current-change="loadLogs" /></div>
+    </section>
+    <el-dialog v-model="detailVisible" :title="detail ? '问答日志详情' : '日志详情'" width="720px"><template v-if="detail"><div class="log-detail-block"><span>用户问题</span><strong>{{ detail.question }}</strong></div><div class="log-detail-block answer"><span>AI 回答</span><p>{{ detail.answer }}</p></div><el-descriptions :column="2" border><el-descriptions-item label="用户 ID">{{ detail.userId }}</el-descriptions-item><el-descriptions-item label="会话 ID">{{ detail.sessionId || '-' }}</el-descriptions-item><el-descriptions-item label="知识域">{{ domainLabel(detail.knowledgeDomain) }}</el-descriptions-item><el-descriptions-item label="模型">{{ detail.modelName || '-' }}</el-descriptions-item><el-descriptions-item label="命中状态">{{ detail.hitFlag ? '已命中' : '未命中' }}</el-descriptions-item><el-descriptions-item label="耗时">{{ detail.latencyMs ? `${detail.latencyMs} ms` : '-' }}</el-descriptions-item></el-descriptions><div v-if="detail.citations?.length" class="log-citations"><h4>引用来源</h4><div v-for="(citation, index) in detail.citations" :key="index" class="log-citation"><strong>{{ citation.docTitle || '知识文档' }}</strong><span>{{ citation.snippet }}</span><small v-if="citation.score !== undefined">相似度 {{ score(citation.score) }}</small></div></div></template></el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { onMounted, reactive, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
+import { getChatLogDetail, getChatLogPage } from '../api/aiLog'
+import SectionTitle from '../components/SectionTitle.vue'
+
+const domains = [{ value: 'ATTENDANCE', label: '考勤制度' }, { value: 'FLOW', label: '审批流程' }, { value: 'HR', label: '人事制度' }]
+const filters = reactive({ keyword: '', knowledgeDomain: '', hitFlag: '' })
+const logs = ref([]), total = ref(0), page = ref(1), size = 20, loading = ref(false), detailVisible = ref(false), detail = ref(null)
+const domainLabel = (value) => domains.find((item) => item.value === value)?.label || value || '全部知识库'
+const score = (value) => value === undefined || value === null ? '-' : `${Math.round(Number(value) * 100)}%`
+function formatDate(value) { if (!value) return '-'; const date = new Date(String(value).replace(' ', 'T')); if (Number.isNaN(date.getTime())) return value; return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date) }
+function search() { page.value = 1; loadLogs() }
+async function loadLogs() { loading.value = true; try { const result = await getChatLogPage({ ...filters, page: page.value, size }); logs.value = result?.list || result?.records || []; total.value = Number(result?.total || 0) } catch (error) { logs.value = []; total.value = 0; ElMessage.error(error.message || '问答日志加载失败') } finally { loading.value = false } }
+async function showDetail(id) { try { detail.value = await getChatLogDetail(id); detailVisible.value = true } catch (error) { ElMessage.error(error.message || '日志详情加载失败') } }
+onMounted(loadLogs)
+</script>
+
+<style scoped>
+.log-filters { display: flex; flex-wrap: wrap; gap: 8px; }.log-filters .el-input { width: 180px; }.log-filters .el-select { width: 126px; }.log-text { display: grid; gap: 4px; min-width: 0; }.log-text strong, .log-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.log-text strong { color: var(--text); }.log-text span { color: var(--muted); font-size: 12px; }.table-pagination { display: flex; justify-content: flex-end; margin-top: 16px; }.log-detail-block { display: grid; gap: 7px; margin-bottom: 18px; padding: 14px; border-left: 3px solid #2563eb; background: #f4f8ff; }.log-detail-block span { color: var(--muted); font-size: 12px; }.log-detail-block strong, .log-detail-block p { margin: 0; color: var(--text); line-height: 1.7; white-space: pre-wrap; }.log-detail-block.answer { border-color: #bfdbfe; background: #f8fbff; }.log-citations { margin-top: 20px; }.log-citations h4 { margin: 0 0 10px; }.log-citation { display: grid; gap: 5px; padding: 11px; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-size: 13px; line-height: 1.6; }.log-citation + .log-citation { margin-top: 8px; }.log-citation strong { color: var(--text); }.log-citation small { color: var(--primary); }@media (max-width: 760px) { .log-filters { width: 100%; }.log-filters .el-input, .log-filters .el-select { flex: 1 1 130px; width: auto; } }
+</style>
