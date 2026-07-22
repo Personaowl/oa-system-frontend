@@ -53,17 +53,42 @@
       </section>
 
       <section class="panel section notice-overview-panel notice-overview">
-        <SectionTitle title="通知概览" subtitle="当前账号的阅读状态。" />
-        <div class="notice-metric">
-          <span>未读公告</span>
-          <strong>{{ unreadCount }}</strong>
-          <small>阅读公告后会自动同步状态</small>
+        <SectionTitle title="通知概览" subtitle="当前工作空间的公告阅读状态。">
+          <template #extra>
+            <el-tag effect="plain" type="primary">{{ canManage ? '管理视图' : '员工视图' }}</el-tag>
+          </template>
+        </SectionTitle>
+
+        <div class="notice-metrics">
+          <div class="notice-metric notice-metric--primary">
+            <span>未读公告</span>
+            <strong>{{ unreadCount }}</strong>
+            <small>待处理阅读</small>
+          </div>
+          <div class="notice-metric">
+            <span>已发布</span>
+            <strong>{{ publishedCount }}</strong>
+            <small>当前可用公告</small>
+          </div>
+          <div class="notice-metric">
+            <span>置顶通知</span>
+            <strong>{{ topCount }}</strong>
+            <small>优先关注内容</small>
+          </div>
+          <div class="notice-metric">
+            <span>公告总数</span>
+            <strong>{{ total }}</strong>
+            <small>当前列表统计</small>
+          </div>
         </div>
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="当前视图">{{ canManage ? '管理端公告' : '员工可见公告' }}</el-descriptions-item>
-          <el-descriptions-item label="已发布">{{ publishedCount }}</el-descriptions-item>
-          <el-descriptions-item label="置顶通知">{{ topCount }}</el-descriptions-item>
-        </el-descriptions>
+
+        <div class="notice-scope-card">
+          <span class="notice-scope-label">当前查看范围</span>
+          <strong>{{ canManage ? '管理端公告' : '员工可见公告' }}</strong>
+          <p>{{ canManage ? '可维护公告的发布状态与置顶优先级。' : '打开公告后，阅读状态会自动同步。' }}</p>
+        </div>
+
+        <p class="notice-publisher-tip">数据会随公告列表刷新同步更新，帮助你快速确认待阅读事项与重点通知。</p>
       </section>
     </div>
 
@@ -293,9 +318,7 @@ onMounted(loadNotices)
 .notice-title-cell strong.is-unread { color: #1d4ed8; }
 .notice-title-cell span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .notice-actions { display: flex; align-items: center; gap: 2px; }
-.notice-metric { display: grid; gap: 6px; padding: 8px 0 20px; }
-.notice-metric span, .notice-metric small { color: var(--muted); font-size: 12px; }
-.notice-metric strong { color: var(--primary); font-size: 34px; line-height: 1; }
+.notice-metric--primary { border-color: #bcd3ff; background: #f4f8ff; }
 .notice-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
 .notice-detail-summary { margin: 20px 0 0; color: var(--muted); line-height: 1.7; }
 .notice-detail-content { margin-top: 20px; color: var(--text); line-height: 1.8; white-space: pre-wrap; }
