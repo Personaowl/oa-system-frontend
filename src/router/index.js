@@ -9,6 +9,7 @@ import NoticeView from '../views/NoticeView.vue'
 import BoardView from '../views/BoardView.vue'
 import AiKnowledgeView from '../views/AiKnowledgeView.vue'
 import AiLogView from '../views/AiLogView.vue'
+import PayrollView from '../views/PayrollView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
@@ -25,7 +26,8 @@ const routes = [
       { path: 'notice', name: 'notice', component: NoticeView, meta: { title: '公告通知' } },
       { path: 'board', name: 'board', component: BoardView, meta: { title: '数据看板', roles: ['超级管理员', 'HR 人事', '部门主管'] } },
       { path: 'ai-knowledge', name: 'ai-knowledge', component: AiKnowledgeView, meta: { title: '知识文档管理', roles: ['超级管理员'] } },
-      { path: 'ai-logs', name: 'ai-logs', component: AiLogView, meta: { title: 'AI 问答日志', roles: ['超级管理员'] } }
+      { path: 'ai-logs', name: 'ai-logs', component: AiLogView, meta: { title: 'AI 问答日志', roles: ['超级管理员'] } },
+      { path: 'payroll', name: 'payroll', component: PayrollView, meta: { title: '工资管理', roles: ['超级管理员', '部门主管'] } }
     ]
   }
 ]

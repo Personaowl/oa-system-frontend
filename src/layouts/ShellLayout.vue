@@ -210,6 +210,7 @@ import {
   TrendCharts,
   FolderOpened,
   ChatLineSquare,
+  CreditCard,
   SwitchButton,
   RefreshRight,
   EditPen,
@@ -285,7 +286,8 @@ const menuItems = [
   { path: '/notice', label: '公告通知', icon: Bell },
   { path: '/board', label: '数据看板', icon: TrendCharts, roles: ['超级管理员', 'HR 人事', '部门主管'] },
   { path: '/ai-knowledge', label: '知识文档', icon: FolderOpened, roles: ['超级管理员'] },
-  { path: '/ai-logs', label: 'AI 问答日志', icon: ChatLineSquare, roles: ['超级管理员'] }
+  { path: '/ai-logs', label: 'AI 问答日志', icon: ChatLineSquare, roles: ['超级管理员'] },
+  { path: '/payroll', label: '工资管理', icon: CreditCard, roles: ['超级管理员', '部门主管'] }
 ]
 const visibleMenuItems = computed(() => menuItems.filter((item) => !item.roles || item.roles.includes(auth.role.value)))
 
