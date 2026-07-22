@@ -24,7 +24,7 @@
         </el-menu-item>
       </el-menu>
 
-      <el-button class="sidebar-ai-launch" type="primary" :icon="ChatDotRound" @click="aiDrawerVisible = true">
+      <el-button class="sidebar-ai-launch" type="primary" :icon="ChatDotRound" @click="openAiAssistant">
         AI 助手
       </el-button>
 
@@ -126,26 +126,70 @@
               <span>OA 工作支持</span>
             </div>
           </div>
-          <el-button circle text :icon="Close" @click="aiDrawerVisible = false" />
+          <div class="ai-header-actions">
+            <el-button circle text title="新建会话" :icon="Plus" @click="startNewAiChat" />
+            <el-button circle text title="会话历史" :icon="Collection" @click="toggleAiHistory" />
+            <el-button circle text :icon="Close" @click="aiDrawerVisible = false" />
+          </div>
         </header>
 
-        <el-scrollbar class="ai-chat-messages">
-          <div v-for="(message, index) in aiMessages" :key="index" class="ai-message" :class="message.role">
-            <div class="ai-message-avatar">{{ message.role === 'assistant' ? 'AI' : avatarLabel }}</div>
-            <div class="ai-message-bubble">{{ message.content }}</div>
+        <el-scrollbar v-if="aiHistoryVisible" class="ai-chat-messages ai-session-list">
+          <div class="ai-history-head">
+            <strong>会话历史</strong>
+            <el-button link type="primary" :loading="aiSessionsLoading" @click="loadAiSessions">刷新</el-button>
+          </div>
+          <el-empty v-if="!aiSessionsLoading && !aiSessions.length" description="暂无历史会话" :image-size="70" />
+          <div v-for="session in aiSessions" :key="session.id" class="ai-session-item" :class="{ active: session.id === aiSessionId }" role="button" tabindex="0" @click="openAiSession(session.id)" @keyup.enter="openAiSession(session.id)">
+            <span class="ai-session-item-title">{{ session.sessionTitle || session.latestQuestion || '未命名会话' }}</span>
+            <span>{{ session.latestQuestion || '暂未提问' }}</span>
+            <div class="ai-session-item-foot">
+              <small>{{ session.messageCount || 0 }} 条消息</small>
+              <span class="ai-session-item-actions">
+                <el-button link type="warning" size="small" @click.stop="archiveAiSession(session.id)">归档</el-button>
+                <el-button link type="danger" size="small" @click.stop="removeAiSession(session.id)">删除</el-button>
+              </span>
+            </div>
           </div>
         </el-scrollbar>
 
-        <footer class="ai-chat-compose">
+        <el-scrollbar v-else ref="aiMessagesRef" class="ai-chat-messages">
+          <div class="ai-domain-row">
+            <span>知识范围</span>
+            <el-select v-model="aiDomain" size="small" :disabled="aiSending">
+              <el-option v-for="domain in aiDomains" :key="domain.value" :label="domain.label" :value="domain.value" />
+            </el-select>
+          </div>
+          <div v-for="(message, index) in aiMessages" :key="`${message.role}-${index}`" class="ai-message" :class="message.role">
+            <div class="ai-message-avatar">{{ message.role === 'assistant' ? 'AI' : avatarLabel }}</div>
+            <div class="ai-message-content">
+              <div class="ai-message-bubble">{{ message.content }}</div>
+              <el-collapse v-if="message.citations?.length" class="ai-citations">
+                <el-collapse-item :name="`citation-${index}`">
+                  <template #title>参考来源（{{ message.citations.length }}）</template>
+                  <div v-for="(citation, citationIndex) in message.citations" :key="citationIndex" class="ai-citation-item">
+                    <strong>{{ citation.docTitle || '知识文档' }}</strong>
+                    <span>{{ citation.snippet }}</span>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </div>
+          <div v-if="aiSending" class="ai-message">
+            <div class="ai-message-avatar">AI</div>
+            <div class="ai-message-bubble ai-answer-loading">正在检索知识库并生成回答…</div>
+          </div>
+        </el-scrollbar>
+
+        <footer v-if="!aiHistoryVisible" class="ai-chat-compose">
           <div class="ai-suggestions">
             <el-button v-for="suggestion in aiSuggestions" :key="suggestion" plain size="small" @click="askAiSuggestion(suggestion)">
               {{ suggestion }}
             </el-button>
           </div>
-          <el-input v-model="aiInput" type="textarea" :rows="3" resize="none" placeholder="输入问题，例如：如何提交请假申请？" @keyup.ctrl.enter="sendAiMessage" />
+          <el-input v-model="aiInput" type="textarea" :rows="3" resize="none" :disabled="aiSending" placeholder="输入问题，例如：如何提交请假申请？" @keyup.ctrl.enter="sendAiMessage" />
           <div class="ai-compose-actions">
             <span>Ctrl + Enter 发送</span>
-            <el-button type="primary" :icon="Promotion" :disabled="!aiInput.trim()" @click="sendAiMessage">发送</el-button>
+            <el-button type="primary" :icon="Promotion" :loading="aiSending" :disabled="!aiInput.trim()" @click="sendAiMessage">发送</el-button>
           </div>
         </footer>
       </section>
@@ -156,7 +200,7 @@
 <script setup>
 import { computed, nextTick, onErrorCaptured, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DataLine,
   UserFilled,
@@ -172,9 +216,12 @@ import {
   ChatDotRound,
   MagicStick,
   Promotion,
-  Close
+  Close,
+  Plus,
+  Collection
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
+import { archiveChatSession, chatAi, deleteChatSession, getChatSessionDetail, getChatSessionPage } from '../api/ai'
 import appIcon from '../../picture/wut-oa-icon.png'
 
 const route = useRoute()
@@ -185,6 +232,12 @@ const pageError = ref(null)
 const viewVersion = ref(0)
 const accountDialogVisible = ref(false)
 const aiDrawerVisible = ref(false)
+const aiHistoryVisible = ref(false)
+const aiSessionsLoading = ref(false)
+const aiSending = ref(false)
+const aiSessions = ref([])
+const aiSessionId = ref(null)
+const aiMessagesRef = ref()
 const accountFormRef = ref()
 const accountSaving = ref(false)
 const accountForm = reactive({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -200,9 +253,16 @@ const avatarLabel = computed(() => auth.state.profile?.avatar && !isImageAvatar(
   : String(auth.state.profile?.name || 'U').slice(0, 1).toUpperCase())
 const avatarDraftIsImage = computed(() => isImageAvatar(avatarDraft.value))
 const aiInput = ref('')
-const aiSuggestions = ['如何提交请假申请？', '查看我的待审批', '今天的考勤情况']
+const aiDomain = ref('ALL')
+const aiDomains = [
+  { value: 'ALL', label: '全部知识库' },
+  { value: 'ATTENDANCE', label: '考勤制度' },
+  { value: 'FLOW', label: '审批流程' },
+  { value: 'HR', label: '人事制度' }
+]
+const aiSuggestions = ['如何提交请假申请？', '迟到多久算迟到？', '今天的考勤情况']
 const aiMessages = ref([
-  { role: 'assistant', content: '你好，我是 OA 助手。你可以问我审批、考勤、公告或组织相关的问题。' }
+  { role: 'assistant', content: '你好，我是 OA 助手。我会基于已入库的办公制度为你解答。' }
 ])
 const accountRules = {
   username: [{ pattern: /^$|^[A-Za-z0-9_]{3,32}$/, message: '用户名需为 3-32 位字母、数字或下划线', trigger: 'blur' }],
@@ -249,31 +309,107 @@ function retryPage() {
   })
 }
 
-function getAiReply(question) {
-  if (question.includes('请假') || question.includes('审批')) {
-    return '可以在“审批流程”页面新建申请，填写类型、时长和原因后提交。'
+function normalizeAiMessage(message) {
+  return {
+    role: String(message.role || '').toLowerCase() === 'user' ? 'user' : 'assistant',
+    content: message.content || '',
+    citations: message.citations || []
   }
-  if (question.includes('考勤') || question.includes('打卡')) {
-    return '可以在“考勤打卡”页面查看今日记录，并完成上班或下班打卡。'
-  }
-  if (question.includes('公告') || question.includes('通知')) {
-    return '公告通知页面支持查看已发布通知；具备权限的账号还可以发布新公告。'
-  }
-  if (question.includes('组织') || question.includes('部门')) {
-    return '组织权限页面可以查看部门、员工与角色权限信息。'
-  }
-  return '这是前端演示助手，目前可协助你了解审批、考勤、公告和组织管理入口。'
 }
 
-function sendAiMessage() {
+async function scrollAiMessagesToBottom() {
+  await nextTick()
+  aiMessagesRef.value?.setScrollTop?.(100000)
+}
+
+async function openAiAssistant() {
+  aiDrawerVisible.value = true
+  aiHistoryVisible.value = false
+  await loadAiSessions()
+  scrollAiMessagesToBottom()
+}
+
+async function loadAiSessions() {
+  aiSessionsLoading.value = true
+  try {
+    const page = await getChatSessionPage({ page: 1, size: 30, status: 'ACTIVE' })
+    aiSessions.value = page?.list || page?.records || []
+  } catch (error) {
+    aiSessions.value = []
+    ElMessage.error(error.message || '会话历史加载失败')
+  } finally {
+    aiSessionsLoading.value = false
+  }
+}
+
+function startNewAiChat() {
+  aiHistoryVisible.value = false
+  aiSessionId.value = null
+  aiMessages.value = [{ role: 'assistant', content: '已新建会话。请告诉我你想了解的办公制度或流程。' }]
+  scrollAiMessagesToBottom()
+}
+
+async function toggleAiHistory() {
+  aiHistoryVisible.value = !aiHistoryVisible.value
+  if (aiHistoryVisible.value) await loadAiSessions()
+}
+
+async function openAiSession(id) {
+  try {
+    const detail = await getChatSessionDetail(id)
+    aiSessionId.value = detail.id || id
+    aiDomain.value = detail.knowledgeDomain || 'ALL'
+    aiMessages.value = (detail.messages || []).map(normalizeAiMessage)
+    aiHistoryVisible.value = false
+    await scrollAiMessagesToBottom()
+  } catch (error) {
+    ElMessage.error(error.message || '会话详情加载失败')
+  }
+}
+
+async function archiveAiSession(id) {
+  try {
+    await ElMessageBox.confirm('归档后可在历史记录中保留，但不会继续显示在活动会话中。', '归档会话', { type: 'warning' })
+    await archiveChatSession(id)
+    if (aiSessionId.value === id) startNewAiChat()
+    ElMessage.success('会话已归档')
+    await loadAiSessions()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(error.message || '归档会话失败')
+  }
+}
+
+async function removeAiSession(id) {
+  try {
+    await ElMessageBox.confirm('删除后无法恢复该会话记录。', '删除会话', { type: 'warning' })
+    await deleteChatSession(id)
+    if (aiSessionId.value === id) startNewAiChat()
+    ElMessage.success('会话已删除')
+    await loadAiSessions()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(error.message || '删除会话失败')
+  }
+}
+
+async function sendAiMessage() {
   const question = aiInput.value.trim()
-  if (!question) return
+  if (!question || aiSending.value) return
 
   aiMessages.value.push({ role: 'user', content: question })
   aiInput.value = ''
-  window.setTimeout(() => {
-    aiMessages.value.push({ role: 'assistant', content: getAiReply(question) })
-  }, 180)
+  aiSending.value = true
+  await scrollAiMessagesToBottom()
+  try {
+    const response = await chatAi({ question, sessionId: aiSessionId.value || undefined, knowledgeDomain: aiDomain.value, topK: 3, stream: false })
+    aiSessionId.value = response.sessionId || aiSessionId.value
+    aiMessages.value.push({ role: 'assistant', content: response.answer || '暂未获得回答，请稍后重试。', citations: response.citations || [] })
+    await loadAiSessions()
+  } catch (error) {
+    aiMessages.value.push({ role: 'assistant', content: error.message || 'AI 助手暂时无法回答，请稍后重试。' })
+  } finally {
+    aiSending.value = false
+    await scrollAiMessagesToBottom()
+  }
 }
 
 function askAiSuggestion(suggestion) {
