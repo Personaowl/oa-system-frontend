@@ -847,6 +847,12 @@ a {
   gap: 10px;
 }
 
+.ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .ai-chat-title > .el-icon {
   display: grid;
   width: 34px;
@@ -878,6 +884,21 @@ a {
   padding: 18px;
 }
 
+.ai-domain-row,
+.ai-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ai-domain-row .el-select {
+  width: 146px;
+}
+
 .ai-message {
   align-items: flex-start;
   gap: 8px;
@@ -886,6 +907,10 @@ a {
 
 .ai-message.user {
   flex-direction: row-reverse;
+}
+
+.ai-message-content {
+  min-width: 0;
 }
 
 .ai-message-avatar {
@@ -921,6 +946,115 @@ a {
   border-color: #2563eb;
   background: #2563eb;
   color: #ffffff;
+}
+
+.ai-answer-loading {
+  color: var(--muted);
+}
+
+.ai-citations {
+  width: 290px;
+  max-width: 100%;
+  margin-top: 6px;
+  border-top: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.ai-citations .el-collapse-item__header {
+  height: 28px;
+  border-bottom: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+}
+
+.ai-citations .el-collapse-item__wrap {
+  border-bottom: 0;
+  background: transparent;
+}
+
+.ai-citations .el-collapse-item__content {
+  padding-bottom: 2px;
+}
+
+.ai-citation-item {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-left: 2px solid #bfdbfe;
+  background: #f8fbff;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ai-citation-item + .ai-citation-item {
+  margin-top: 6px;
+}
+
+.ai-citation-item strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.ai-session-list {
+  background: #ffffff;
+}
+
+.ai-session-item {
+  display: grid;
+  width: 100%;
+  gap: 5px;
+  margin-bottom: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+}
+
+.ai-session-item:hover,
+.ai-session-item.active {
+  border-color: #93c5fd;
+  background: #f4f8ff;
+}
+
+.ai-session-item-title {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-session-item > span:not(.ai-session-item-title) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-session-item-foot,
+.ai-session-item-actions {
+  display: flex;
+  align-items: center;
+}
+
+.ai-session-item-foot {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-session-item-actions {
+  gap: 6px;
+}
+
+.ai-session-item small {
+  color: #8a9aa5;
 }
 
 .ai-chat-compose {
