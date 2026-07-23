@@ -11,6 +11,28 @@
       </div>
     </div>
 
+    <section class="panel notice-search-panel">
+      <div class="notice-search-main">
+        <el-input v-model="searchForm.keyword" clearable :prefix-icon="Search" placeholder="检索公告标题、摘要和正文" @keyup.enter="searchNotices" />
+        <el-select v-if="canManage" v-model="searchForm.status" clearable placeholder="全部状态">
+          <el-option label="草稿" value="DRAFT" />
+          <el-option label="已发布" value="PUBLISHED" />
+          <el-option label="已下线" value="OFFLINE" />
+        </el-select>
+        <el-select v-model="searchForm.topFlag" clearable placeholder="置顶条件">
+          <el-option label="仅置顶" :value="true" />
+          <el-option label="非置顶" :value="false" />
+        </el-select>
+        <el-date-picker v-model="searchForm.publishedRange" type="datetimerange" range-separator="至" start-placeholder="发布起始" end-placeholder="发布结束" />
+      </div>
+      <div class="notice-search-actions">
+        <el-button type="primary" :icon="Search" :loading="loading" @click="searchNotices">全文检索</el-button>
+        <el-button :icon="RefreshLeft" @click="resetSearch">重置</el-button>
+        <el-button v-if="canUpdate" plain :icon="Connection" :loading="reindexing" @click="rebuildIndex">重建索引</el-button>
+      </div>
+      <p v-if="searchActive" class="search-mode-tip">正在使用 Elasticsearch 全文检索，命中关键词已高亮显示。</p>
+    </section>
+
     <div class="notice-layout">
       <section class="panel section notice-list-panel">
         <SectionTitle title="公告列表" :subtitle="canManage ? '管理端列表，可维护公告全生命周期。' : '仅展示当前账号可见的已发布公告。'">
@@ -26,8 +48,8 @@
               <template #default="{ row }">
                 <div class="notice-title-cell">
                   <el-badge v-if="row.topFlag" value="置顶" type="danger" />
-                  <strong :class="{ 'is-unread': !row.read }">{{ row.title }}</strong>
-                  <span>{{ row.summary || '暂无摘要' }}</span>
+                  <strong :class="{ 'is-unread': !row.read }" v-html="highlightHtml(row.highlightedTitle, row.title)"></strong>
+                  <span v-html="highlightHtml(row.highlightedSummary || row.highlightedContent, row.summary || row.contentSnippet || '暂无摘要')"></span>
                 </div>
               </template>
             </el-table-column>
@@ -123,7 +145,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh } from '@element-plus/icons-vue'
+import { Connection, Plus, Refresh, RefreshLeft, Search } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import {
   createNotice,
@@ -136,6 +158,9 @@ import {
   markNoticeRead,
   offlineNotice,
   publishNotice,
+  rebuildNoticeSearchIndex,
+  searchManagedNotices,
+  searchPublicNotices,
   updateNotice
 } from '../api/notices'
 import SectionTitle from '../components/SectionTitle.vue'
@@ -143,6 +168,7 @@ import SectionTitle from '../components/SectionTitle.vue'
 const auth = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
+const reindexing = ref(false)
 const notices = ref([])
 const total = ref(0)
 const unreadCount = ref(0)
@@ -152,6 +178,7 @@ const editingId = ref(null)
 const detail = ref(null)
 const formRef = ref()
 const form = reactive({ title: '', summary: '', content: '', topFlag: false, status: 'DRAFT' })
+const searchForm = reactive({ keyword: '', status: '', topFlag: '', publishedRange: [] })
 const canManage = computed(() => auth.hasPermission('notice:list'))
 const canCreate = computed(() => auth.hasPermission('notice:create'))
 const canUpdate = computed(() => auth.hasPermission('notice:update'))
@@ -160,6 +187,9 @@ const canPublish = computed(() => auth.hasPermission('notice:publish'))
 const canOffline = computed(() => auth.hasPermission('notice:offline'))
 const publishedCount = computed(() => notices.value.filter((item) => item.status === 'PUBLISHED').length)
 const topCount = computed(() => notices.value.filter((item) => item.topFlag).length)
+const searchActive = computed(() => Boolean(
+  searchForm.keyword.trim() || searchForm.status || searchForm.topFlag !== '' || searchForm.publishedRange?.length
+))
 const rules = {
   title: [{ required: true, message: '请输入公告标题', trigger: 'blur' }],
   content: [{ required: true, message: '请输入公告内容', trigger: 'blur' }]
@@ -191,8 +221,12 @@ function resetForm() {
 async function loadNotices() {
   loading.value = true
   try {
+    const params = buildSearchParams()
+    const listRequest = searchActive.value
+      ? (canManage.value ? searchManagedNotices(params) : searchPublicNotices(params))
+      : (canManage.value ? listManagedNotices({ page: 1, size: 100 }) : listPublicNotices({ page: 1, size: 100 }))
     const [page, unread] = await Promise.all([
-      canManage.value ? listManagedNotices({ page: 1, size: 100 }) : listPublicNotices({ page: 1, size: 100 }),
+      listRequest,
       getUnreadNoticeCount()
     ])
     notices.value = page?.records || []
@@ -205,6 +239,58 @@ async function loadNotices() {
   } finally {
     loading.value = false
   }
+}
+
+function buildSearchParams() {
+  const range = searchForm.publishedRange || []
+  return {
+    keyword: searchForm.keyword.trim(),
+    status: canManage.value ? searchForm.status : undefined,
+    topFlag: searchForm.topFlag,
+    publishedFrom: range[0] instanceof Date ? localDateTime(range[0]) : undefined,
+    publishedTo: range[1] instanceof Date ? localDateTime(range[1]) : undefined,
+    page: 1,
+    size: 100
+  }
+}
+
+function localDateTime(date) {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function searchNotices() {
+  loadNotices()
+}
+
+function resetSearch() {
+  searchForm.keyword = ''
+  searchForm.status = ''
+  searchForm.topFlag = ''
+  searchForm.publishedRange = []
+  loadNotices()
+}
+
+async function rebuildIndex() {
+  reindexing.value = true
+  try {
+    const result = await rebuildNoticeSearchIndex()
+    ElMessage.success(`索引重建完成，共写入 ${result?.indexedCount || 0} 条公告`)
+    if (searchActive.value) await loadNotices()
+  } catch (error) {
+    ElMessage.error(error.message || '索引重建失败')
+  } finally {
+    reindexing.value = false
+  }
+}
+
+function highlightHtml(highlighted, fallback) {
+  const text = String(highlighted || fallback || '').replaceAll('[[[/H]]][[[H]]]', '')
+  return text
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+    .replaceAll('[[[H]]]', '<mark class="search-highlight">')
+    .replaceAll('[[[/H]]]', '</mark>')
 }
 
 function openCreate() {
@@ -321,6 +407,11 @@ onMounted(loadNotices)
 </script>
 
 <style scoped>
+.notice-search-panel { display: grid; gap: 12px; padding: 18px 20px; }
+.notice-search-main { display: grid; grid-template-columns: minmax(260px, 1fr) 150px 130px minmax(300px, .8fr); gap: 10px; }
+.notice-search-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.search-mode-tip { margin: 0; color: #5965e9; font-size: 12px; }
+:deep(.search-highlight) { padding: 0 2px; border-radius: 3px; background: #fff0a8; color: #b45309; font-style: normal; }
 .notice-title-cell { display: grid; gap: 4px; min-width: 0; }
 .notice-title-cell strong { color: var(--text); cursor: pointer; font-size: 13px; }
 .notice-title-cell strong.is-unread { color: #1d4ed8; }
@@ -330,4 +421,6 @@ onMounted(loadNotices)
 .notice-detail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
 .notice-detail-summary { margin: 20px 0 0; color: var(--muted); line-height: 1.7; }
 .notice-detail-content { margin-top: 20px; color: var(--text); line-height: 1.8; white-space: pre-wrap; }
+@media (max-width: 1180px) { .notice-search-main { grid-template-columns: 1fr 150px 130px; } .notice-search-main .el-date-editor { grid-column: 1 / -1; width: 100%; } }
+@media (max-width: 760px) { .notice-search-main { grid-template-columns: 1fr; } .notice-search-main .el-date-editor { grid-column: auto; } }
 </style>

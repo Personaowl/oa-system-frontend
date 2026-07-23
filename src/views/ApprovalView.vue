@@ -94,6 +94,47 @@
             </el-table-column>
           </el-table>
         </el-tab-pane>
+
+        <el-tab-pane label="全文检索" name="search">
+          <div class="flow-search-box">
+            <div class="flow-search-filters">
+              <el-input v-model="searchForm.keyword" clearable :prefix-icon="Search" placeholder="检索审批标题和申请原因" @keyup.enter="searchFlows" />
+              <el-select v-model="searchForm.requestType" clearable placeholder="全部类型">
+                <el-option label="请假申请" value="LEAVE" />
+                <el-option label="加班申请" value="OVERTIME" />
+              </el-select>
+              <el-select v-model="searchForm.status" clearable placeholder="全部状态">
+                <el-option label="待审批" value="PENDING" />
+                <el-option label="已通过" value="APPROVED" />
+                <el-option label="已驳回" value="REJECTED" />
+              </el-select>
+              <el-date-picker v-model="searchForm.createdRange" type="datetimerange" range-separator="至" start-placeholder="提交起始" end-placeholder="提交结束" />
+            </div>
+            <div class="flow-search-actions">
+              <el-button type="primary" :icon="Search" :loading="searching" @click="searchFlows">Elasticsearch 检索</el-button>
+              <el-button :icon="RefreshLeft" @click="resetFlowSearch">重置</el-button>
+              <el-button v-if="isAdmin" plain :icon="Connection" :loading="reindexing" @click="rebuildFlowIndex">重建索引</el-button>
+              <span>共 {{ searchTotal }} 条，仅显示当前账号有权查看的数据</span>
+            </div>
+          </div>
+          <el-table v-loading="searching" :data="searchResults" border max-height="520" empty-text="暂无匹配的审批记录">
+            <el-table-column label="审批标题" width="150">
+              <template #default="{ row }"><strong v-html="highlightHtml(row.highlightedTitle, row.title)"></strong></template>
+            </el-table-column>
+            <el-table-column label="申请内容" min-width="250">
+              <template #default="{ row }"><span class="search-content" v-html="highlightHtml(row.highlightedContent, row.contentSnippet || '—')"></span></template>
+            </el-table-column>
+            <el-table-column label="申请时间" min-width="220">
+              <template #default="{ row }">{{ formatDateTime(row.startTime) }} 至 {{ formatDateTime(row.endTime) }}</template>
+            </el-table-column>
+            <el-table-column label="状态" width="105">
+              <template #default="{ row }"><el-tag size="small" :type="statusTag(row.status)">{{ statusText(row.status) }}</el-tag></template>
+            </el-table-column>
+            <el-table-column label="提交时间" width="165">
+              <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
       </el-tabs>
     </div>
 
@@ -151,7 +192,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Clock, DocumentAdd, DocumentChecked, Refresh, Select, UserFilled } from '@element-plus/icons-vue'
+import { Clock, Connection, DocumentAdd, DocumentChecked, Refresh, RefreshLeft, Search, Select, UserFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import {
   listDoneFlowTasks,
@@ -159,6 +200,8 @@ import {
   listMyFlowRequests,
   listTodoFlowTasks,
   reviewFlowTask,
+  rebuildFlowSearchIndex,
+  searchFlowRequests,
   submitLeaveRequest,
   submitOvertimeRequest
 } from '../api/flows'
@@ -169,6 +212,8 @@ const activeTab = ref('mine')
 const loading = ref(false)
 const submitting = ref(false)
 const reviewing = ref(false)
+const searching = ref(false)
+const reindexing = ref(false)
 const myRequests = ref([])
 const todoTasks = ref([])
 const doneTasks = ref([])
@@ -177,13 +222,17 @@ const createVisible = ref(false)
 const reviewVisible = ref(false)
 const createFormRef = ref()
 const reviewTarget = ref(null)
+const searchResults = ref([])
+const searchTotal = ref(0)
 
 const isReviewer = computed(() => auth.hasPermission('flow:task:approve'))
+const isAdmin = computed(() => auth.hasPermission('system:admin'))
 const myPendingCount = computed(() => myRequests.value.filter((item) => item.status === 'PENDING').length)
 const myDoneCount = computed(() => myRequests.value.filter((item) => item.status !== 'PENDING').length)
 
 const createForm = reactive({ type: 'LEAVE', startTime: '', endTime: '', reason: '', approverId: '' })
 const reviewForm = reactive({ decision: 'APPROVE', comment: '' })
+const searchForm = reactive({ keyword: '', requestType: '', status: '', createdRange: [] })
 
 const validateTimeRange = (_rule, _value, callback) => {
   if (createForm.startTime && createForm.endTime && new Date(createForm.endTime) <= new Date(createForm.startTime)) {
@@ -220,6 +269,62 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+async function searchFlows() {
+  searching.value = true
+  try {
+    const range = searchForm.createdRange || []
+    const page = await searchFlowRequests({
+      keyword: searchForm.keyword.trim(),
+      requestType: searchForm.requestType,
+      status: searchForm.status,
+      createdFrom: range[0] instanceof Date ? localDateTime(range[0]) : undefined,
+      createdTo: range[1] instanceof Date ? localDateTime(range[1]) : undefined,
+      page: 1,
+      size: 100
+    })
+    searchResults.value = page?.records || []
+    searchTotal.value = Number(page?.total || 0)
+  } catch (error) {
+    searchResults.value = []
+    searchTotal.value = 0
+    ElMessage.error(error.message || '审批全文检索失败')
+  } finally {
+    searching.value = false
+  }
+}
+
+function localDateTime(date) {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function resetFlowSearch() {
+  Object.assign(searchForm, { keyword: '', requestType: '', status: '', createdRange: [] })
+  searchResults.value = []
+  searchTotal.value = 0
+}
+
+async function rebuildFlowIndex() {
+  reindexing.value = true
+  try {
+    const result = await rebuildFlowSearchIndex()
+    ElMessage.success(`索引重建完成，共写入 ${result?.indexedCount || 0} 条审批`)
+    await searchFlows()
+  } catch (error) {
+    ElMessage.error(error.message || '审批索引重建失败')
+  } finally {
+    reindexing.value = false
+  }
+}
+
+function highlightHtml(highlighted, fallback) {
+  return String(highlighted || fallback || '').replaceAll('[[[/H]]][[[H]]]', '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+    .replaceAll('[[[H]]]', '<mark class="search-highlight">')
+    .replaceAll('[[[/H]]]', '</mark>')
 }
 
 function openCreateDialog() {
@@ -320,8 +425,18 @@ onMounted(loadData)
 .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .review-summary { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; padding: 14px 16px; border-radius: 10px; background: var(--soft-bg, #f5f7fa); color: var(--text); }
 .review-summary span { color: var(--muted); line-height: 1.6; }
+.flow-search-box { display: grid; gap: 12px; margin-bottom: 16px; padding: 16px; border-radius: 14px; background: #f6f7fc; }
+.flow-search-filters { display: grid; grid-template-columns: minmax(250px, 1fr) 140px 140px minmax(300px, .8fr); gap: 10px; }
+.flow-search-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.flow-search-actions span { margin-left: auto; color: var(--muted); font-size: 12px; }
+.search-content { line-height: 1.6; }
+:deep(.search-highlight) { padding: 0 2px; border-radius: 3px; background: #fff0a8; color: #b45309; font-style: normal; }
+@media (max-width: 1180px) { .flow-search-filters { grid-template-columns: 1fr 140px 140px; } .flow-search-filters .el-date-editor { grid-column: 1 / -1; width: 100%; } }
 @media (max-width: 760px) {
   .time-grid { grid-template-columns: 1fr; gap: 0; }
   .page-actions { width: 100%; }
+  .flow-search-filters { grid-template-columns: 1fr; }
+  .flow-search-filters .el-date-editor { grid-column: auto; }
+  .flow-search-actions span { width: 100%; margin-left: 0; }
 }
 </style>

@@ -3,6 +3,15 @@ import { useAuthStore } from '../stores/auth'
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
 const FLOW_PATH = '/api/v1/flows'
 
+function queryString(params = {}) {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') search.set(key, String(value))
+  })
+  const text = search.toString()
+  return text ? `?${text}` : ''
+}
+
 function unwrap(body) {
   return body?.data ?? body?.result ?? body
 }
@@ -45,6 +54,8 @@ export const listFlowApprovers = () => request(`${FLOW_PATH}/approvers`)
 export const listTodoFlowTasks = () => request(`${FLOW_PATH}/tasks/todo`)
 export const listDoneFlowTasks = () => request(`${FLOW_PATH}/tasks/done`)
 export const getFlowRequest = (id) => request(`${FLOW_PATH}/requests/${id}`)
+export const searchFlowRequests = (params) => request(`${FLOW_PATH}/search${queryString(params)}`)
+export const rebuildFlowSearchIndex = () => request(`${FLOW_PATH}/search/reindex`, { method: 'POST' })
 
 export const submitLeaveRequest = (payload) => request(`${FLOW_PATH}/leave-requests`, {
   method: 'POST',

@@ -104,6 +104,18 @@ export function listPublicNotices(params) {
   return request(`${NOTICE_PATH}/public${queryString(params)}`)
 }
 
+export function searchManagedNotices(params) {
+  return request(`${NOTICE_PATH}/search${queryString(params)}`)
+}
+
+export function searchPublicNotices(params) {
+  return request(`${NOTICE_PATH}/public/search${queryString(params)}`)
+}
+
+export function rebuildNoticeSearchIndex() {
+  return request(`${NOTICE_PATH}/search/reindex`, { method: 'POST' })
+}
+
 export function getPublicNotice(id) {
   return request(`${NOTICE_PATH}/public/${id}`)
 }
