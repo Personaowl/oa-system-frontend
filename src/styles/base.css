@@ -2298,3 +2298,118 @@ a {
 .approval-main{
   overflow-x: auto;
 }
+
+.ai-markdown {
+  overflow-wrap: anywhere;
+}
+
+.ai-markdown > :first-child { margin-top: 0; }
+.ai-markdown > :last-child { margin-bottom: 0; }
+
+.ai-markdown p { margin: 0 0 10px; }
+
+.ai-markdown h1,
+.ai-markdown h2,
+.ai-markdown h3,
+.ai-markdown h4,
+.ai-markdown h5,
+.ai-markdown h6 {
+  margin: 0 0 8px;
+  color: inherit;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ai-markdown h1 { font-size: 18px; }
+.ai-markdown h2 { font-size: 16px; }
+.ai-markdown h3,
+.ai-markdown h4,
+.ai-markdown h5,
+.ai-markdown h6 { font-size: 14px; }
+
+.ai-markdown ul,
+.ai-markdown ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.ai-markdown li + li { margin-top: 4px; }
+
+.ai-markdown blockquote {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-left: 3px solid #93c5fd;
+  background: #f4f8ff;
+  color: var(--muted);
+}
+
+.ai-markdown code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #eef2f5;
+  color: #334e68;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: .92em;
+}
+
+.ai-markdown .md-code-block {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 7px;
+  background: #1f2933;
+  color: #e6edf3;
+  line-height: 1.55;
+}
+
+.ai-markdown .md-code-block code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+
+.ai-markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.ai-markdown img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 6px 0;
+  border-radius: 6px;
+}
+
+.ai-markdown hr {
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.ai-markdown .md-table-wrap {
+  max-width: 100%;
+  margin: 0 0 10px;
+  overflow-x: auto;
+}
+
+.ai-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.ai-markdown th,
+.ai-markdown td {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.ai-markdown th {
+  background: #f4f8ff;
+  color: var(--text);
+  font-weight: 700;
+}
