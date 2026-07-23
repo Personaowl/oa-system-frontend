@@ -1,6 +1,16 @@
 <template>
   <div class="split-layout app-shell">
     <aside class="sidebar">
+      <div class="sidebar-motion" aria-hidden="true">
+        <span
+          v-for="particle in sidebarParticles"
+          :key="particle.id"
+          class="sidebar-particle"
+          :style="particle.style"
+        />
+        <i class="sidebar-flow sidebar-flow-one" />
+        <i class="sidebar-flow sidebar-flow-two" />
+      </div>
       <div class="brand">
         <div class="brand-mark">
           <img :src="appIcon" alt="OA 管理系统" />
@@ -281,8 +291,18 @@ const timeLabel = computed(() => new Intl.DateTimeFormat('zh-CN', { hour: '2-dig
 const clockTimer = window.setInterval(() => {
   now.value = new Date()
 }, 1000)
+const sidebarParticles = Array.from({ length: 18 }, (_, index) => ({
+  id: index,
+  style: {
+    '--x': ((index * 31 + 9) % 94) + '%',
+    '--size': (index % 4 + 2) + 'px',
+    '--delay': -(index % 9) * 1.25 + 's',
+    '--duration': (8 + (index % 6) * 1.4) + 's',
+    '--drift': ((index % 2 === 0 ? 1 : -1) * (10 + index % 5 * 5)) + 'px'
+  }
+}))
 const menuItems = [
-  { path: '/dashboard', label: '总览', icon: DataLine },
+  { path: '/dashboard', label: '工作台', icon: DataLine },
   { path: '/org', label: '组织权限', icon: UserFilled, children: [
     { path: '/org/departments', label: '部门管理', icon: Collection, roles: ['超级管理员', 'HR 人事'] },
     { path: '/org/employees', label: '员工管理', icon: UserFilled, roles: ['超级管理员', 'HR 人事', '部门主管'] }
@@ -314,11 +334,17 @@ onErrorCaptured((error, instance, info) => {
 
 onUnmounted(() => {
   window.clearInterval(clockTimer)
+  window.removeEventListener('open-ai-assistant', handleOpenAiEvent)
 })
 
 onMounted(() => {
   auth.refreshAvatar().catch(() => {})
+  window.addEventListener('open-ai-assistant', handleOpenAiEvent)
 })
+
+function handleOpenAiEvent() {
+  openAiAssistant()
+}
 
 function retryPage() {
   pageError.value = null

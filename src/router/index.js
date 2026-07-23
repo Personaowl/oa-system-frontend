@@ -19,7 +19,7 @@ const routes = [
     component: ShellLayout,
     redirect: '/dashboard',
     children: [
-      { path: 'dashboard', name: 'dashboard', component: DashboardView, meta: { title: '总览' } },
+      { path: 'dashboard', name: 'dashboard', component: DashboardView, meta: { title: '工作台' } },
       { path: 'org', redirect: '/org/departments' },
       { path: 'org/departments', name: 'departments', component: OrgView, meta: { title: '部门管理', roles: ['超级管理员', 'HR 人事'] } },
       { path: 'org/employees', name: 'employees', component: EmployeeView, meta: { title: '员工管理', roles: ['超级管理员', 'HR 人事', '部门主管'] } },

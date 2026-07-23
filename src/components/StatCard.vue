@@ -3,7 +3,7 @@
     <div class="metric-card-head">
       <div class="metric-card-label">{{ title }}</div>
       <div class="metric-icon">
-        <el-icon :size="18"><component :is="icon" /></el-icon>
+        <el-icon :size="26"><component :is="icon" /></el-icon>
       </div>
     </div>
     <div class="metric-value">{{ value }}</div>

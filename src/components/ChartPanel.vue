@@ -24,7 +24,7 @@ function render() {
   if (!chart || !props.option) return
   chart.setOption(
     {
-      color: ['#2563eb', '#0ea5e9', '#c77809', '#16a34a'],
+      color: ['#5b5ff5', '#17c9a3', '#ff9f43', '#ff6680', '#43a5ff', '#a86df3'],
       textStyle: {
         color: '#647987',
         fontFamily: 'Inter, PingFang SC, Microsoft YaHei, system-ui, sans-serif'
@@ -35,7 +35,7 @@ function render() {
         borderColor: '#dce6eb',
         borderWidth: 1,
         textStyle: { color: '#263f4d' },
-        extraCssText: 'box-shadow: 0 10px 24px rgba(20, 42, 54, 0.10); border-radius: 6px;',
+        extraCssText: 'box-shadow: 0 16px 36px rgba(41, 47, 105, 0.16); border-radius: 12px;',
         ...props.option.tooltip
       }
     },
