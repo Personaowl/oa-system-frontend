@@ -238,7 +238,8 @@ import {
   Promotion,
   Close,
   Plus,
-  Collection
+  Collection,
+  Reading
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { archiveChatSession, chatAiStream, deleteChatSession, getChatSessionDetail, getChatSessionPage } from '../api/ai'
@@ -314,6 +315,7 @@ const menuItems = [
   { path: '/attendance', label: '考勤打卡', icon: Calendar },
   { path: '/approval', label: '审批流程', icon: DocumentChecked },
   { path: '/notice', label: '公告通知', icon: Bell },
+  { path: '/workspace', label: '共享空间', icon: Reading },
   { path: '/board', label: '数据看板', icon: TrendCharts, roles: ['超级管理员', 'HR 人事', '部门主管'] },
   { path: '/screen', label: '数据大屏', icon: Monitor, roles: ['超级管理员', 'HR 人事', '部门主管'] },
   { path: '/ai-knowledge', label: '知识文档', icon: FolderOpened, roles: ['超级管理员'] },
