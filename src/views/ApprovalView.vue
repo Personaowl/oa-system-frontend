@@ -18,7 +18,7 @@
       <StatCard title="我的申请" :value="myRequests.length" :subtitle="auth.state.profile?.name || '当前账号'" :icon="UserFilled" color="var(--success)" />
     </div>
 
-    <div class="panel section">
+    <div class="panel section approval-main">
       <el-tabs v-model="activeTab">
         <el-tab-pane label="我的申请" name="mine">
           <el-table v-loading="loading" :data="myRequests" border max-height="520" empty-text="暂无申请记录">
