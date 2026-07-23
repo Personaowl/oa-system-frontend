@@ -11,12 +11,20 @@
           <el-tag round effect="plain" type="success">服务已同步</el-tag>
         </div>
       </div>
-      <div class="hero-visual" aria-hidden="true">
-        <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
-        <div class="hero-core"><el-icon><Sunny /></el-icon></div>
-        <div class="hero-float hero-float-one"><el-icon><Bell /></el-icon></div>
-        <div class="hero-float hero-float-two"><el-icon><DocumentChecked /></el-icon></div>
-        <div class="hero-float hero-float-three"><el-icon><Calendar /></el-icon></div>
+      <div class="hero-profile-panel">
+        <div class="hero-identity">
+          <el-avatar :size="72" :src="auth.state.profile?.avatar || ''">{{ avatarFallback }}</el-avatar>
+          <div>
+            <small>今日办公账号</small>
+            <strong>{{ auth.state.profile?.name || '同事' }}</strong>
+            <span>{{ auth.state.profile?.department || '未分配部门' }} · {{ auth.state.profile?.role || '普通员工' }}</span>
+          </div>
+        </div>
+        <div class="hero-clock">
+          <span><el-icon><Clock /></el-icon> 当前时间</span>
+          <strong>{{ clockText }}</strong>
+          <small>{{ fullDateText }}</small>
+        </div>
       </div>
       <el-button class="hero-refresh" circle :icon="Refresh" :loading="loading" @click="loadData" />
     </section>
@@ -82,10 +90,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowRight, Bell, Calendar, ChatDotRound, Clock, Document, DocumentChecked, MagicStick, Refresh, Sunny, TrendCharts } from '@element-plus/icons-vue'
+import { ArrowRight, Bell, Calendar, ChatDotRound, Clock, Document, DocumentChecked, MagicStick, Refresh, TrendCharts } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { getAttendanceScope, listAllAttendanceRecords } from '../api/attendance'
 import { listMyFlowRequests, listTodoFlowTasks } from '../api/flows'
@@ -102,10 +110,17 @@ const todoTasks = ref([])
 const noticeTotal = ref(0)
 const unreadNoticeCount = ref(0)
 const latestNotices = ref([])
+const currentTime = ref(new Date())
+let clockTimer
 const isReviewer = computed(() => auth.hasPermission('flow:task:approve'))
 const canViewBoard = computed(() => ['超级管理员', 'HR 人事', '部门主管'].includes(auth.role.value))
-const hour = new Date().getHours()
-const greeting = computed(() => hour < 6 ? '夜深了' : hour < 11 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好')
+const greeting = computed(() => {
+  const hour = currentTime.value.getHours()
+  return hour < 6 ? '夜深了' : hour < 11 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好'
+})
+const avatarFallback = computed(() => String(auth.state.profile?.name || auth.state.profile?.username || 'OA').trim().slice(0, 1).toUpperCase())
+const clockText = computed(() => new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(currentTime.value))
+const fullDateText = computed(() => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(currentTime.value))
 const todayLabel = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date())
 const scopeLabel = computed(() => ({ ALL_USERS: '全部组织', DEPARTMENT: '负责部门', SELF: '仅本人' }[scope.dataScope] || '当前账号'))
 const currentAttendance = computed(() => attendanceRows.value.find((item) => String(item.userId) === String(auth.state.profile?.id)) || attendanceRows.value[0])
@@ -141,7 +156,7 @@ const taskItems = computed(() => {
   }))
 })
 const attendanceStatus = computed(() => attendanceStatusText(currentAttendance.value?.status))
-const attendanceTone = computed(() => ['NORMAL', 'IN_PROGRESS'].includes(currentAttendance.value?.status) ? 'is-good' : currentAttendance.value ? 'is-alert' : 'is-empty')
+const attendanceTone = computed(() => ['NORMAL', 'IN_PROGRESS', 'LEAVE'].includes(currentAttendance.value?.status) ? 'is-good' : currentAttendance.value ? 'is-alert' : 'is-empty')
 const checkInTime = computed(() => timeOnly(currentAttendance.value?.checkInTime))
 const checkOutTime = computed(() => timeOnly(currentAttendance.value?.checkOutTime))
 async function safe(task, fallback, errors) { try { return await task } catch (error) { errors.push(error); return fallback } }
@@ -184,8 +199,12 @@ function timeOnly(value) {
   return Number.isNaN(date.getTime()) ? String(value).slice(11, 16) : date.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' })
 }
 function flowTypeText(type) { return { LEAVE: '请假', OVERTIME: '加班' }[type] || '办公' }
-function attendanceStatusText(status) { return { IN_PROGRESS: '工作中', NORMAL: '打卡正常', LATE: '今日迟到', EARLY_LEAVE: '今日早退', LATE_AND_EARLY_LEAVE: '考勤异常', MISSING_CHECK_OUT: '待下班打卡' }[status] || '等待打卡' }
-onMounted(loadData)
+function attendanceStatusText(status) { return { IN_PROGRESS: '工作中', NORMAL: '打卡正常', LEAVE: '今日请假', LATE: '今日迟到', EARLY_LEAVE: '今日早退', LATE_AND_EARLY_LEAVE: '考勤异常', MISSING_CHECK_OUT: '待下班打卡' }[status] || '等待打卡' }
+onMounted(() => {
+  loadData()
+  clockTimer = window.setInterval(() => { currentTime.value = new Date() }, 1000)
+})
+onUnmounted(() => window.clearInterval(clockTimer))
 </script>
 
 <style scoped>
@@ -195,5 +214,15 @@ onMounted(loadData)
 .workbench-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.72fr);gap:18px}.workbench-section{padding:22px 24px;border-radius:20px}.task-list{display:grid;gap:9px}.task-item{display:flex;align-items:center;width:100%;gap:12px;padding:12px;border:1px solid transparent;border-radius:14px;background:#f7f8fd;color:var(--text);cursor:pointer;text-align:left;transition:border-color .2s,transform .2s,background .2s}.task-item:hover{border-color:#cfd7ff;background:#f3f5ff;transform:translateX(3px)}.task-state{display:grid;width:40px;height:40px;flex:0 0 40px;place-items:center;border-radius:13px;background:#e8edff;color:#4c5ce5;font-size:20px}.task-state.amber{background:#fff0d7;color:#e98a17}.task-copy{min-width:0;flex:1}.task-copy strong,.task-copy small{display:block}.task-copy strong{font-size:13px}.task-copy small{margin-top:5px;color:var(--muted);font-size:11px}
 .attendance-card{display:flex;flex-direction:column}.attendance-ring{width:136px;height:136px;margin:6px auto 15px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(#5a63e9 0 72%,#e8eafe 72%)}.attendance-ring>div{display:grid;width:108px;height:108px;place-content:center;border-radius:50%;background:#fff;text-align:center;box-shadow:inset 0 0 0 1px #eef0fa}.attendance-ring strong,.attendance-ring span{display:block}.attendance-ring strong{font-size:17px}.attendance-ring span{margin-top:5px;color:var(--muted);font-size:11px}.attendance-ring.is-alert{background:conic-gradient(#f59e42 0 72%,#fff1df 72%)}.attendance-ring.is-empty{background:conic-gradient(#b6bfd2 0 36%,#edf0f5 36%)}.attendance-time-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:15px}.attendance-time-grid div{padding:11px;border-radius:12px;background:#f7f8fc;text-align:center}.attendance-time-grid span,.attendance-time-grid strong{display:block}.attendance-time-grid span{color:var(--muted);font-size:11px}.attendance-time-grid strong{margin-top:5px;font-size:16px;font-variant-numeric:tabular-nums}
 .notice-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.notice-preview{display:flex;align-items:center;gap:12px;min-width:0;padding:13px;border:1px solid #edf0f6;border-radius:15px;background:#fafbfe;color:var(--text);cursor:pointer;text-align:left;transition:transform .2s,border-color .2s}.notice-preview:hover{transform:translateY(-2px);border-color:#cfd7ff}.notice-index{display:grid;width:38px;height:38px;flex:0 0 38px;place-items:center;border-radius:12px;background:#e8edff;color:#5361e9;font-size:11px;font-weight:800}.notice-index.tone-1{background:#fff0df;color:#ef8a22}.notice-index.tone-2{background:#e2f8f2;color:#159a74}.notice-index.tone-3{background:#f9e7f3;color:#d04b91}.notice-copy{min-width:0;flex:1}.notice-copy strong,.notice-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.notice-copy strong{font-size:13px}.notice-copy small{margin-top:5px;color:var(--muted);font-size:11px}.notice-time{color:#9aa5b5;font-size:11px;white-space:nowrap}
+.workbench-hero{display:flex;align-items:center;justify-content:space-between;gap:36px;background:linear-gradient(120deg,#eef4ff 0%,#f4f2ff 52%,#f8f1ff 100%);box-shadow:0 18px 42px rgba(78,91,145,.13);color:#182842}
+.workbench-hero::before{background:radial-gradient(circle at 12% 0%,rgba(137,174,255,.2),transparent 34%),radial-gradient(circle at 91% 18%,rgba(184,146,245,.16),transparent 30%)}
+.workbench-hero::after{position:absolute;right:-42px;bottom:-85px;width:230px;height:230px;border:34px solid rgba(111,126,222,.055);border-radius:50%;content:''}
+.hero-copy{max-width:680px}.hero-kicker{color:#73809a}.hero-kicker span{background:#6a7ce8}.hero-copy p{color:#6c7890}.hero-tags :deep(.el-tag){border-color:#d5dcf2;background:rgba(255,255,255,.68);color:#4a5874;backdrop-filter:blur(8px)}.hero-tags :deep(.el-tag:first-child){border-color:#cfd7fb;background:#e4e9ff;color:#4c5ed1}
+.hero-profile-panel{position:relative;z-index:2;display:grid;width:min(440px,38%);min-width:350px;grid-template-columns:minmax(0,1fr) 148px;gap:12px;padding:14px;border:1px solid rgba(255,255,255,.9);border-radius:22px;background:rgba(255,255,255,.66);box-shadow:0 14px 32px rgba(81,92,141,.12);backdrop-filter:blur(14px)}
+.hero-identity{display:flex;align-items:center;gap:13px;min-width:0}.hero-identity :deep(.el-avatar){flex:0 0 72px;border:4px solid rgba(255,255,255,.9);background:linear-gradient(135deg,#7182e8,#a17be8);box-shadow:0 9px 22px rgba(86,101,190,.2);color:#fff;font-size:25px;font-weight:800}.hero-identity>div{min-width:0}.hero-identity small,.hero-identity strong,.hero-identity span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hero-identity small{color:#8490a7;font-size:10px}.hero-identity strong{margin:5px 0;color:#1d2d48;font-size:17px}.hero-identity span{color:#69768e;font-size:11px}
+.hero-clock{display:flex;flex-direction:column;justify-content:center;padding-left:15px;border-left:1px solid #e0e5f1}.hero-clock span{display:flex;align-items:center;gap:5px;color:#748099;font-size:10px}.hero-clock strong{margin:6px 0 3px;color:#263857;font-size:24px;font-variant-numeric:tabular-nums;letter-spacing:.03em}.hero-clock small{color:#8a95a9;font-size:10px;line-height:1.4}.hero-refresh{border-color:#d8def1;background:rgba(255,255,255,.72);color:#6675d8}
+.focus-card{--card-a:#eef0ff;--card-b:#f5f2ff;border:1px solid #e2e6f5;background:linear-gradient(135deg,var(--card-a),var(--card-b));box-shadow:0 12px 26px rgba(74,88,142,.09);color:#273752}.focus-card:hover{box-shadow:0 17px 34px rgba(74,88,142,.14)}.focus-card::after{border-color:rgba(96,107,202,.06)}.focus-card.orange{--card-a:#fff4e8;--card-b:#fff8ef;border-color:#f5e5cf}.focus-card.cyan{--card-a:#eaf8fb;--card-b:#f2fbfc;border-color:#d8edf1}.focus-card.green{--card-a:#eaf8f2;--card-b:#f2fbf7;border-color:#d9eee5}.focus-icon{border-color:rgba(255,255,255,.8);background:#7180e6;box-shadow:0 9px 18px rgba(91,107,213,.2);color:#fff}.focus-card.orange .focus-icon{background:#efa957;box-shadow:0 9px 18px rgba(229,156,69,.2)}.focus-card.cyan .focus-icon{background:#51b8c8;box-shadow:0 9px 18px rgba(51,157,176,.19)}.focus-card.green .focus-icon{background:#53b98e;box-shadow:0 9px 18px rgba(48,158,112,.18)}.focus-copy small{color:#748099}.focus-copy strong{color:#263650}.focus-copy em{color:#8490a5}.focus-arrow{color:#8a95aa}
+@media(max-width:1050px){.workbench-hero{align-items:flex-start;flex-direction:column}.hero-profile-panel{width:100%;min-width:0;max-width:540px}}
+@media(max-width:620px){.hero-profile-panel{grid-template-columns:1fr}.hero-clock{padding-top:12px;padding-left:0;border-top:1px solid #e0e5f1;border-left:0}.hero-clock strong{font-size:21px}}
 @keyframes hero-spin{to{transform:rotate(360deg)}}@keyframes hero-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}@media(max-width:1180px){.focus-grid{grid-template-columns:repeat(2,1fr)}.quick-launchers{grid-template-columns:repeat(3,1fr)}}@media(max-width:820px){.hero-visual{opacity:.38;right:-30px}.workbench-grid{grid-template-columns:1fr}.quick-panel{grid-template-columns:1fr}.quick-heading{padding-bottom:14px;border-right:0;border-bottom:1px solid var(--border)}.notice-cards{grid-template-columns:1fr}}@media(max-width:560px){.workbench-hero{padding:28px 22px}.focus-grid{grid-template-columns:1fr}.quick-launchers{grid-template-columns:repeat(2,1fr)}}@media(prefers-reduced-motion:reduce){.hero-orbit,.hero-float{animation:none}.focus-card,.quick-icon,.task-item,.notice-preview{transition:none}}
 </style>

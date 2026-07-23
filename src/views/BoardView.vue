@@ -100,7 +100,7 @@ const visibleFlows = computed(() => {
 })
 const stats = computed(() => {
   const totalAttendance = attendanceRecords.value.length
-  const normalAttendance = attendanceRecords.value.filter((item) => ['NORMAL', 'IN_PROGRESS'].includes(item.status)).length
+  const normalAttendance = attendanceRecords.value.filter((item) => ['NORMAL', 'IN_PROGRESS', 'LEAVE'].includes(item.status)).length
   const finishedFlows = visibleFlows.value.filter((item) => ['APPROVED', 'REJECTED'].includes(item.status)).length
   return {
     employees: scope.users.length,
@@ -119,7 +119,7 @@ const attendanceOption = computed(() => ({
   yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#edf0f7', type: 'dashed' } }, ...chartAxis },
   series: [
     { name: '考勤记录', type: 'bar', barWidth: 20, data: recentDays.value.map((day) => attendanceRecords.value.filter((item) => item.workDate === day.key).length), itemStyle: { color: '#6570ea', borderRadius: [7, 7, 0, 0] } },
-    { name: '异常', type: 'line', smooth: true, symbolSize: 8, data: recentDays.value.map((day) => attendanceRecords.value.filter((item) => item.workDate === day.key && !['NORMAL', 'IN_PROGRESS'].includes(item.status)).length), lineStyle: { width: 3, color: '#f29b42' }, itemStyle: { color: '#f29b42' }, areaStyle: { color: 'rgba(242,155,66,.12)' } }
+    { name: '异常', type: 'line', smooth: true, symbolSize: 8, data: recentDays.value.map((day) => attendanceRecords.value.filter((item) => item.workDate === day.key && !['NORMAL', 'IN_PROGRESS', 'LEAVE'].includes(item.status)).length), lineStyle: { width: 3, color: '#f29b42' }, itemStyle: { color: '#f29b42' }, areaStyle: { color: 'rgba(242,155,66,.12)' } }
   ]
 }))
 const approvalPieOption = computed(() => ({

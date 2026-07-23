@@ -7,6 +7,7 @@
       </div>
       <div class="tool-row">
         <el-button :loading="loading" @click="loadAll">刷新</el-button>
+        <el-button v-if="canExportDepartments" :loading="exporting" :icon="Download" @click="exportDepartmentData">导出 Excel</el-button>
         <el-button :icon="Lock" @click="permissionDialogVisible = true">角色权限</el-button>
         <el-button v-if="canCreateDepartment" type="primary" :icon="Plus" @click="openDepartment()">新增部门</el-button>
       </div>
@@ -107,10 +108,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Lock, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { Download, Lock, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import {
-  createDepartment, deleteDepartment,
+  createDepartment, deleteDepartment, exportDepartments,
   listDepartments, listPermissions, listRoles, listUsers,
   updateDepartment
 } from '../api/organization'
@@ -119,6 +120,7 @@ import SectionTitle from '../components/SectionTitle.vue'
 const auth = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
+const exporting = ref(false)
 const departments = ref([])
 const employees = ref([])
 const roles = ref([])
@@ -129,6 +131,7 @@ const departmentFormRef = ref()
 const departmentForm = reactive({ id: '', name: '', parentId: null, managerId: null, sortOrder: 0, enabled: true })
 
 const canCreateDepartment = computed(() => auth.hasPermission('sys:dept:create'))
+const canExportDepartments = computed(() => auth.hasPermission('sys:dept:list'))
 const canUpdateDepartment = computed(() => auth.hasPermission('sys:dept:update'))
 const canDeleteDepartment = computed(() => auth.hasPermission('sys:dept:delete'))
 const departmentOptions = computed(() => departments.value.filter((item) => item.status === 1).map((item) => ({ label: item.name, value: item.id })))
@@ -155,6 +158,18 @@ async function loadAll() {
   } catch (error) {
     ElMessage.error(error.message || '组织数据加载失败')
   } finally { loading.value = false }
+}
+
+async function exportDepartmentData() {
+  exporting.value = true
+  try {
+    const fileName = await exportDepartments()
+    ElMessage.success(`已导出 ${fileName}`)
+  } catch (error) {
+    ElMessage.error(error.message || '部门数据导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 function openDepartment(row = null) {

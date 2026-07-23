@@ -139,6 +139,7 @@ const statusOptions = [
   { value: 'IN_PROGRESS', label: '工作中' },
   { value: 'IN_PROGRESS_LATE', label: '迟到，工作中' },
   { value: 'NORMAL', label: '正常' },
+  { value: 'LEAVE', label: '已请假' },
   { value: 'LATE', label: '迟到' },
   { value: 'EARLY_LEAVE', label: '早退' },
   { value: 'LATE_AND_EARLY_LEAVE', label: '迟到且早退' },
@@ -188,7 +189,7 @@ function formatDateTime(value) {
 }
 
 function pillClass(status) {
-  if (status === 'NORMAL') return 'is-success'
+  if (['NORMAL', 'LEAVE'].includes(status)) return 'is-success'
   if (['LATE', 'EARLY_LEAVE', 'LATE_AND_EARLY_LEAVE', 'IN_PROGRESS_LATE'].includes(status)) return 'is-warning'
   if (status === 'MISSING_CHECK_OUT') return 'is-danger'
   return 'is-info'

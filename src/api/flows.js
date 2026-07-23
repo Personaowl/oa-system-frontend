@@ -54,6 +54,9 @@ export const listFlowApprovers = () => request(`${FLOW_PATH}/approvers`)
 export const listTodoFlowTasks = () => request(`${FLOW_PATH}/tasks/todo`)
 export const listDoneFlowTasks = () => request(`${FLOW_PATH}/tasks/done`)
 export const getFlowRequest = (id) => request(`${FLOW_PATH}/requests/${id}`)
+export const withdrawFlowRequest = (id) => request(`${FLOW_PATH}/requests/${id}/withdraw`, {
+  method: 'POST'
+})
 export const searchFlowRequests = (params) => request(`${FLOW_PATH}/search${queryString(params)}`)
 export const rebuildFlowSearchIndex = () => request(`${FLOW_PATH}/search/reindex`, { method: 'POST' })
 

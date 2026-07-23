@@ -223,6 +223,7 @@ import {
   DocumentChecked,
   Bell,
   TrendCharts,
+  Monitor,
   FolderOpened,
   ChatLineSquare,
   SwitchButton,
@@ -311,6 +312,7 @@ const menuItems = [
   { path: '/approval', label: '审批流程', icon: DocumentChecked },
   { path: '/notice', label: '公告通知', icon: Bell },
   { path: '/board', label: '数据看板', icon: TrendCharts, roles: ['超级管理员', 'HR 人事', '部门主管'] },
+  { path: '/screen', label: '数据大屏', icon: Monitor, roles: ['超级管理员', 'HR 人事', '部门主管'] },
   { path: '/ai-knowledge', label: '知识文档', icon: FolderOpened, roles: ['超级管理员'] },
   { path: '/ai-logs', label: 'AI 问答日志', icon: ChatLineSquare, roles: ['超级管理员'] }
 ]

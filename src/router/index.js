@@ -8,12 +8,14 @@ import AttendanceView from '../views/AttendanceView.vue'
 import ApprovalView from '../views/ApprovalView.vue'
 import NoticeView from '../views/NoticeView.vue'
 import BoardView from '../views/BoardView.vue'
+import DataScreenView from '../views/DataScreenView.vue'
 import AiKnowledgeView from '../views/AiKnowledgeView.vue'
 import AiLogView from '../views/AiLogView.vue'
 import { useAuthStore } from '../stores/auth'
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView },
+  { path: '/screen', name: 'data-screen', component: DataScreenView, meta: { title: '数据大屏', roles: ['超级管理员', 'HR 人事', '部门主管'] } },
   {
     path: '/',
     component: ShellLayout,

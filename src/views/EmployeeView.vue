@@ -7,6 +7,7 @@
       </div>
       <div class="tool-row">
         <el-button :loading="loading" @click="loadAll">刷新</el-button>
+        <el-button v-if="canExportUsers" :loading="exporting" :icon="Download" @click="exportEmployeeData">导出 Excel</el-button>
         <el-button v-if="canCreateUser" type="primary" :icon="Plus" @click="openEmployee()">新增员工</el-button>
       </div>
     </div>
@@ -104,14 +105,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Download, Plus } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
-import { createUser, deleteUser, listDepartments, listRoles, listUsers, updateUser, updateUserSalary } from '../api/organization'
+import { createUser, deleteUser, exportUsers, listDepartments, listRoles, listUsers, updateUser, updateUserSalary } from '../api/organization'
 import SectionTitle from '../components/SectionTitle.vue'
 
 const auth = useAuthStore()
 const loading = ref(false)
 const saving = ref(false)
+const exporting = ref(false)
 const employees = ref([])
 const departments = ref([])
 const roles = ref([])
@@ -124,6 +126,7 @@ const employeeForm = reactive({ id: '', displayName: '', username: '', password:
 const salaryForm = reactive({ id: '', displayName: '', username: '', departmentName: '', salary: 0 })
 
 const canCreateUser = computed(() => auth.hasPermission('sys:user:create'))
+const canExportUsers = computed(() => auth.hasPermission('sys:user:list'))
 const canUpdateUser = computed(() => auth.hasPermission('sys:user:update'))
 const canDeleteUser = computed(() => auth.hasPermission('sys:user:delete'))
 const canViewSalary = computed(() => auth.hasPermission('sys:salary:view'))
@@ -180,6 +183,21 @@ async function loadAll() {
   } catch (error) {
     ElMessage.error(error.message || '员工数据加载失败')
   } finally { loading.value = false }
+}
+
+async function exportEmployeeData() {
+  exporting.value = true
+  try {
+    const fileName = await exportUsers({
+      keyword: keyword.value.trim() || undefined,
+      departmentId: departmentFilter.value || undefined
+    })
+    ElMessage.success(`已导出 ${fileName}`)
+  } catch (error) {
+    ElMessage.error(error.message || '员工数据导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 function openEmployee(row = null) {
