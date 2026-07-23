@@ -1,11 +1,23 @@
 <template>
   <div class="login-layout">
     <section class="login-showcase">
+      <div class="showcase-backdrop" aria-hidden="true">
+        <div class="showcase-grid"></div>
+        <div class="showcase-arc showcase-arc-one"></div>
+        <div class="showcase-arc showcase-arc-two"></div>
+        <span
+          v-for="particle in showcaseParticles"
+          :key="particle.id"
+          class="showcase-particle"
+          :style="particle.style"
+        ></span>
+      </div>
+
       <header class="login-brand">
         <div class="login-brand-mark">
           <img :src="appIcon" alt="OA 管理系统" />
         </div>
-        <div>
+        <div class="login-brand-copy">
           <span>PERSONA OFFICE</span>
           <strong>OA 办公管理系统</strong>
         </div>
@@ -13,74 +25,72 @@
 
       <div class="login-showcase-body">
         <div class="login-intro">
-          <div class="login-status"><span></span>办公服务稳定运行</div>
-          <h1>OA 办公管理系统</h1>
-          <p>让待办、审批和组织事务始终处在清晰的节奏里。</p>
+          <div class="login-status"><span></span>企业智慧 OA · 协同服务稳定运行</div>
+          <h1>
+          企业智慧 OA
+          <!-- <br /> -->
+          <!-- <em>智能办公协同中心</em> -->
+        </h1>
+          <p>连接组织、流程与知识，让每一次协作都更清晰、更高效。</p>
+          <div class="login-intro-meta" aria-hidden="true">
+            <span><i></i>统一协同</span>
+            <span><i></i>数据驱动</span>
+            <span><i></i>AI 办公</span>
+          </div>
         </div>
 
-        <div class="login-motion-scene" aria-hidden="true">
-          <div class="motion-line motion-line-one"></div>
-          <div class="motion-line motion-line-two"></div>
-          <div class="motion-line motion-line-three"></div>
-          <div class="motion-card motion-card-approval">
-            <div class="motion-card-icon is-teal"><el-icon><DocumentChecked /></el-icon></div>
-            <span>审批</span>
+        <div class="showcase-network" aria-label="智慧办公能力网络">
+          <svg class="network-connections" viewBox="0 0 720 430" preserveAspectRatio="none" aria-hidden="true">
+            <g class="network-lines">
+              <line x1="360" y1="208" x2="110" y2="70" />
+              <line x1="360" y1="208" x2="360" y2="42" />
+              <line x1="360" y1="208" x2="615" y2="76" />
+              <line x1="360" y1="208" x2="74" y2="210" />
+              <line x1="360" y1="208" x2="646" y2="208" />
+              <line x1="360" y1="208" x2="108" y2="354" />
+              <line x1="360" y1="208" x2="360" y2="390" />
+              <line x1="360" y1="208" x2="614" y2="352" />
+            </g>
+            <g class="network-flows">
+              <circle cx="110" cy="70" r="2.5"><animateMotion path="M 110 70 L 360 208 L 110 70" dur="9s" repeatCount="indefinite" /></circle>
+              <circle cx="615" cy="76" r="2.5"><animateMotion path="M 615 76 L 360 208 L 615 76" dur="11s" repeatCount="indefinite" /></circle>
+              <circle cx="74" cy="210" r="2.5"><animateMotion path="M 74 210 L 360 208 L 74 210" dur="10s" repeatCount="indefinite" /></circle>
+              <circle cx="646" cy="208" r="2.5"><animateMotion path="M 646 208 L 360 208 L 646 208" dur="12s" repeatCount="indefinite" /></circle>
+              <circle cx="108" cy="354" r="2.5"><animateMotion path="M 108 354 L 360 208 L 108 354" dur="13s" repeatCount="indefinite" /></circle>
+              <circle cx="614" cy="352" r="2.5"><animateMotion path="M 614 352 L 360 208 L 614 352" dur="10.5s" repeatCount="indefinite" /></circle>
+            </g>
+          </svg>
+
+          <div class="network-halo network-halo-one"></div>
+          <div class="network-halo network-halo-two"></div>
+
+          <div class="network-core">
+            <div class="network-core-orbit network-core-orbit-one"></div>
+            <div class="network-core-orbit network-core-orbit-two"></div>
+            <div class="network-core-mark">OA</div>
+            <strong>智慧办公</strong>
+            <span>协同中枢</span>
           </div>
-          <div class="motion-card motion-card-attendance">
-            <div class="motion-card-icon is-amber"><el-icon><Calendar /></el-icon></div>
-            <span>考勤</span>
+
+          <div
+            v-for="node in capabilityNodes"
+            :key="node.key"
+            class="network-node"
+            :class="[`network-node-${node.key}`, { 'is-ai': node.key === 'ai' }]"
+          >
+            <div class="network-node-icon"><el-icon><component :is="node.icon" /></el-icon></div>
+            <div class="network-node-copy">
+              <strong>{{ node.label }}</strong>
+              <span>{{ node.meta }}</span>
+            </div>
           </div>
-          <div class="motion-card motion-card-notice">
-            <div class="motion-card-icon is-blue"><el-icon><Bell /></el-icon></div>
-            <span>通知</span>
-          </div>
-          <div class="motion-core">OA</div>
         </div>
 
-        <section class="login-preview" aria-label="OA 工作台预览">
-          <div class="login-preview-head">
-            <div>
-              <span>今日工作</span>
-              <strong>{{ dateLabel }}</strong>
-            </div>
-            <el-tag effect="plain" type="success">在线</el-tag>
-          </div>
-
-          <div class="login-preview-stats">
-            <div>
-              <span>流程审批</span>
-              <strong>实时</strong>
-            </div>
-            <div>
-              <span>考勤记录</span>
-              <strong>同步</strong>
-            </div>
-            <div>
-              <span>公告通知</span>
-              <strong>触达</strong>
-            </div>
-          </div>
-
-          <div class="login-preview-list">
-            <div class="login-task">
-              <div class="login-task-icon is-teal"><el-icon><DocumentChecked /></el-icon></div>
-              <div><strong>审批待办</strong><span>请假、加班申请全流程跟踪</span></div>
-              <time>实时</time>
-            </div>
-            <div class="login-task">
-              <div class="login-task-icon is-amber"><el-icon><Calendar /></el-icon></div>
-              <div><strong>考勤汇总</strong><span>按权限查看个人或部门数据</span></div>
-              <time>同步</time>
-            </div>
-            <div class="login-task">
-              <div class="login-task-icon is-blue"><el-icon><Bell /></el-icon></div>
-              <div><strong>公告通知</strong><span>发布、阅读状态及时更新</span></div>
-              <time>在线</time>
-            </div>
-          </div>
-        </section>
+        <div class="showcase-footer" aria-hidden="true">
+          <span><i></i>智慧办公能力在线</span>
+          <span>WORK SMARTER · TOGETHER</span>
+        </div>
       </div>
-
     </section>
 
     <section class="login-form-section">
@@ -138,13 +148,42 @@ import { ElMessage } from 'element-plus'
 import {
   ArrowRight,
   Bell,
-  Calendar,
+  ChatDotRound,
+  Collection,
   DocumentChecked,
+  Grid,
   Lock,
+  OfficeBuilding,
+  Timer,
+  TrendCharts,
   User
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import appIcon from '../../picture/wut-oa-icon.png'
+
+const capabilityNodes = [
+  { key: 'workbench', label: '工作台', meta: '统一入口', icon: Grid },
+  { key: 'organization', label: '组织权限', meta: '灵活协同', icon: OfficeBuilding },
+  { key: 'attendance', label: '考勤打卡', meta: '实时同步', icon: Timer },
+  { key: 'approval', label: '审批流程', meta: '高效流转', icon: DocumentChecked },
+  { key: 'notice', label: '公告通知', meta: '及时触达', icon: Bell },
+  { key: 'board', label: '数据看板', meta: '洞察业务', icon: TrendCharts },
+  { key: 'knowledge', label: '知识文档', meta: '沉淀共享', icon: Collection },
+  { key: 'ai', label: 'AI 助手', meta: '问答日志', icon: ChatDotRound }
+]
+
+const showcaseParticles = [
+  { id: 1, style: { '--x': '9%', '--y': '17%', '--size': '3px', '--delay': '-2s', '--duration': '12s' } },
+  { id: 2, style: { '--x': '20%', '--y': '78%', '--size': '2px', '--delay': '-7s', '--duration': '14s' } },
+  { id: 3, style: { '--x': '34%', '--y': '11%', '--size': '2px', '--delay': '-4s', '--duration': '16s' } },
+  { id: 4, style: { '--x': '47%', '--y': '90%', '--size': '3px', '--delay': '-10s', '--duration': '15s' } },
+  { id: 5, style: { '--x': '64%', '--y': '20%', '--size': '2px', '--delay': '-1s', '--duration': '13s' } },
+  { id: 6, style: { '--x': '76%', '--y': '72%', '--size': '3px', '--delay': '-6s', '--duration': '17s' } },
+  { id: 7, style: { '--x': '88%', '--y': '35%', '--size': '2px', '--delay': '-9s', '--duration': '11s' } },
+  { id: 8, style: { '--x': '93%', '--y': '87%', '--size': '2px', '--delay': '-3s', '--duration': '16s' } },
+  { id: 9, style: { '--x': '4%', '--y': '53%', '--size': '2px', '--delay': '-8s', '--duration': '14s' } },
+  { id: 10, style: { '--x': '56%', '--y': '47%', '--size': '2px', '--delay': '-5s', '--duration': '18s' } }
+]
 
 const router = useRouter()
 const auth = useAuthStore()
