@@ -451,6 +451,42 @@ async function sendAiMessage() {
     const current = aiMessages.value[answerIndex]
     if (current) aiMessages.value[answerIndex] = { ...current, ...patch }
   }
+  let targetAnswer = ''
+  let targetCharacters = []
+  let displayedAnswer = ''
+  let displayedCharacterCount = 0
+  let typewriterTask = null
+  const typewriterDelay = 18
+  const startTypewriter = () => {
+    if (typewriterTask) return typewriterTask
+    typewriterTask = (async () => {
+      while (displayedCharacterCount < targetCharacters.length) {
+        const nextCharacter = targetCharacters[displayedCharacterCount]
+        displayedCharacterCount += 1
+        displayedAnswer += nextCharacter
+        updateAnswerMessage({ content: displayedAnswer })
+        if (displayedCharacterCount % 6 === 0 || nextCharacter === '\n') {
+          await scrollAiMessagesToBottom()
+        }
+        await new Promise((resolve) => setTimeout(resolve, typewriterDelay))
+      }
+    })().finally(() => {
+      typewriterTask = null
+      if (displayedCharacterCount < targetCharacters.length) startTypewriter()
+    })
+    return typewriterTask
+  }
+  const revealAnswer = (answer = '') => {
+    targetAnswer = answer
+    targetCharacters = Array.from(targetAnswer)
+    startTypewriter()
+  }
+  const waitForTypewriter = async () => {
+    while (typewriterTask || displayedCharacterCount < targetCharacters.length) {
+      if (!typewriterTask) startTypewriter()
+      await typewriterTask
+    }
+  }
   aiInput.value = ''
   aiSending.value = true
   await scrollAiMessagesToBottom()
@@ -462,23 +498,26 @@ async function sendAiMessage() {
           const sessionId = payload?.sessionId ?? payload?.data?.sessionId
           if (sessionId !== undefined && sessionId !== null) aiSessionId.value = sessionId
           const citations = payload?.citations || payload?.data?.citations
-          updateAnswerMessage({
-            content: answer,
-            ...(citations?.length ? { citations } : {})
-          })
-          await scrollAiMessagesToBottom()
+          revealAnswer(answer)
+          if (citations?.length) updateAnswerMessage({ citations })
         }
       }
     )
     aiSessionId.value = response.sessionId || aiSessionId.value
+    revealAnswer(response.answer || '暂未获得回答，请稍后重试。')
+    await waitForTypewriter()
     updateAnswerMessage({
-      content: response.answer || '暂未获得回答，请稍后重试。',
       citations: response.citations || aiMessages.value[answerIndex]?.citations || []
     })
     await loadAiSessions()
   } catch (error) {
-    updateAnswerMessage({ content: error.message || 'AI 助手暂时无法回答，请稍后重试。' })
+    targetAnswer = error.message || 'AI 助手暂时无法回答，请稍后重试。'
+    targetCharacters = Array.from(targetAnswer)
+    displayedAnswer = targetAnswer
+    displayedCharacterCount = targetCharacters.length
+    updateAnswerMessage({ content: targetAnswer })
   } finally {
+    await waitForTypewriter()
     updateAnswerMessage({ isStreaming: false })
     aiSending.value = false
     await scrollAiMessagesToBottom()

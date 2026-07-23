@@ -141,7 +141,7 @@ export async function chatAiStream(payload, { onChunk, signal } = {}) {
   }
   if (!response.ok) {
     const body = await parseBody(response)
-    throw new Error(getMessage(body, `?????${response.status}?`))
+    throw new Error(getMessage(body, `AI 请求失败（${response.status}）`))
   }
   if (!response.body) throw new Error('AI 服务未返回可读取的流式响应')
 
@@ -263,7 +263,7 @@ export function getChatSessionDetail(id) {
 }
 
 export function archiveChatSession(id) {
-  return request(`${AI_PATH}/chat-sessions/${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'ARCHIVED' }) })
+  return request(`${AI_PATH}/chat-sessions/${id}?status=ARCHIVED`, { method: 'PATCH' })
 }
 
 export function deleteChatSession(id) {

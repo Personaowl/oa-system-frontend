@@ -73,3 +73,41 @@ export const updateAttendanceRule = (payload) => request('/api/v1/attendance/rul
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(payload)
 })
+export const createAttendanceCorrection = (payload) => request('/api/v1/attendance/corrections', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+})
+export const listMyAttendanceCorrections = () => request('/api/v1/attendance/corrections/mine')
+export const listPendingAttendanceCorrections = () => request('/api/v1/attendance/corrections/pending')
+export const reviewAttendanceCorrection = (id, payload) => request(`/api/v1/attendance/corrections/${id}/review`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+})
+export const getTodayWorkSchedule = () => request('/api/v1/attendance/schedules/today')
+export const listCalendarOverrides = (params) => request(`/api/v1/attendance/schedules/calendar${queryString(params)}`)
+export const updateCalendarOverride = (workDate, payload) => request(`/api/v1/attendance/schedules/calendar/${workDate}`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+})
+export const deleteCalendarOverride = (workDate) => request(`/api/v1/attendance/schedules/calendar/${workDate}`, { method: 'DELETE' })
+export const listAttendanceShifts = () => request('/api/v1/attendance/schedules/shifts')
+export const createAttendanceShift = (payload) => request('/api/v1/attendance/schedules/shifts', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+})
+export const updateAttendanceShift = (id, payload) => request(`/api/v1/attendance/schedules/shifts/${id}`, {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+})
+export const listShiftAssignments = () => request('/api/v1/attendance/schedules/assignments')
+export const createShiftAssignment = (payload) => request('/api/v1/attendance/schedules/assignments', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+})
+export const deleteShiftAssignment = (id) => request(`/api/v1/attendance/schedules/assignments/${id}`, { method: 'DELETE' })

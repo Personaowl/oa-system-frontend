@@ -19,8 +19,14 @@
         <div class="table-wrap">
           <el-table v-loading="loading" class="department-table" :data="departments" border>
             <el-table-column prop="name" label="部门名称" min-width="180" />
-            <el-table-column label="负责人" min-width="150">
-              <template #default="{ row }">{{ row.managerNames?.join('、') || '未指定' }}</template>
+            <el-table-column label="负责人" min-width="210">
+              <template #default="{ row }">
+                <div v-if="row.managerNames?.length" class="manager-tags">
+                  <el-tag type="primary" effect="light">{{ row.managerNames[0] }}</el-tag>
+                  <el-tag v-for="name in row.managerNames.slice(1)" :key="name" type="info" effect="plain">{{ name }}</el-tag>
+                </div>
+                <span v-else>未指定</span>
+              </template>
             </el-table-column>
             <el-table-column prop="employeeCount" label="人数" width="90" align="center" />
             <el-table-column label="状态" width="90">
@@ -46,9 +52,15 @@
             <el-option v-for="item in parentDepartmentOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="负责人">
+        <el-form-item label="主负责人">
           <el-select v-model="departmentForm.managerId" clearable filterable placeholder="可选，请选择部门主管" no-data-text="暂无可选的部门主管" style="width: 100%">
             <el-option v-for="item in managerOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+          <div class="form-help">主负责人作为默认审批人；部门可再配置多名协同主管。</div>
+        </el-form-item>
+        <el-form-item label="协同主管">
+          <el-select v-model="departmentForm.assistantManagerIds" multiple clearable filterable collapse-tags :max-collapse-tags="3" placeholder="可选，可配置多名主管" no-data-text="暂无可选的部门主管" style="width: 100%">
+            <el-option v-for="item in assistantManagerOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -128,7 +140,7 @@ const permissions = ref([])
 const departmentDialogVisible = ref(false)
 const permissionDialogVisible = ref(false)
 const departmentFormRef = ref()
-const departmentForm = reactive({ id: '', name: '', parentId: null, managerId: null, sortOrder: 0, enabled: true })
+const departmentForm = reactive({ id: '', name: '', parentId: null, managerId: null, assistantManagerIds: [], sortOrder: 0, enabled: true })
 
 const canCreateDepartment = computed(() => auth.hasPermission('sys:dept:create'))
 const canExportDepartments = computed(() => auth.hasPermission('sys:dept:list'))
@@ -138,7 +150,9 @@ const departmentOptions = computed(() => departments.value.filter((item) => item
 const parentDepartmentOptions = computed(() => departmentOptions.value.filter((item) => item.value !== departmentForm.id))
 const managerOptions = computed(() => employees.value
   .filter((item) => item.status === 1 && (item.roleCodes || []).some((code) => ['MANAGER', 'ROLE_MANAGER'].includes(String(code).toUpperCase())))
-  .map((item) => ({ label: `${item.displayName}（${item.username}）`, value: item.id })))
+  .map((item) => ({ label: item.displayName, value: item.id })))
+const assistantManagerOptions = computed(() => managerOptions.value
+  .filter((item) => String(item.value) !== String(departmentForm.managerId || '')))
 const roleMatrix = computed(() => {
   const permissionMap = new Map(permissions.value.map((item) => [String(item.id), item]))
   return roles.value.map((role) => ({ ...role, permissions: (role.permissionIds || []).map((id) => permissionMap.get(String(id))).filter(Boolean) }))
@@ -178,9 +192,10 @@ function openDepartment(row = null) {
     name: row.name,
     parentId: row.parentId || null,
     managerId: row.managerId || null,
+    assistantManagerIds: (row.managerIds || []).filter((id) => String(id) !== String(row.managerId || '')),
     sortOrder: row.sortOrder || 0,
     enabled: row.status === 1
-  } : { id: '', name: '', parentId: null, managerId: null, sortOrder: 0, enabled: true })
+  } : { id: '', name: '', parentId: null, managerId: null, assistantManagerIds: [], sortOrder: 0, enabled: true })
   departmentDialogVisible.value = true
 }
 
@@ -192,6 +207,7 @@ async function saveDepartment() {
       name: departmentForm.name,
       parentId: departmentForm.parentId || 0,
       managerId: departmentForm.managerId || null,
+      assistantManagerIds: departmentForm.assistantManagerIds || [],
       sortOrder: departmentForm.sortOrder,
       status: departmentForm.enabled ? 1 : 0
     }
@@ -225,6 +241,7 @@ onMounted(loadAll)
 .org-department-filter { width: 150px; }
 .field-label-with-help { display: inline-flex; align-items: center; gap: 5px; }
 .field-label-with-help .el-icon { color: var(--muted); cursor: help; }
+.manager-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .form-help { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .rbac-overview { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; margin-bottom: 16px; border: 1px solid #dbeafe; border-radius: 14px; background: linear-gradient(135deg, #eff6ff, #f8fbff); }
 .rbac-overview-title { color: #173968; font-size: 18px; font-weight: 700; }
