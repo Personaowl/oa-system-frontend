@@ -177,7 +177,13 @@
           <div v-for="(message, index) in aiMessages" :key="`${message.role}-${index}`" class="ai-message" :class="message.role">
             <div class="ai-message-avatar">{{ message.role === 'assistant' ? 'AI' : avatarLabel }}</div>
             <div class="ai-message-content">
-              <div class="ai-message-bubble">{{ message.content }}</div>
+              <div class="ai-message-bubble" :class="{ 'ai-markdown': message.role === 'assistant' }">
+                <template v-if="message.role === 'assistant'">
+                  <div v-if="message.isStreaming && !message.content" class="ai-answer-loading">正在检索知识库并生成回答…</div>
+                  <div v-else v-html="renderMarkdown(message.content)" />
+                </template>
+                <template v-else>{{ message.content }}</template>
+              </div>
               <el-collapse v-if="message.citations?.length" class="ai-citations">
                 <el-collapse-item :name="`citation-${index}`">
                   <template #title>参考来源（{{ message.citations.length }}）</template>
@@ -188,10 +194,6 @@
                 </el-collapse-item>
               </el-collapse>
             </div>
-          </div>
-          <div v-if="aiSending" class="ai-message">
-            <div class="ai-message-avatar">AI</div>
-            <div class="ai-message-bubble ai-answer-loading">正在检索知识库并生成回答…</div>
           </div>
         </el-scrollbar>
 
@@ -239,8 +241,9 @@ import {
   Collection
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
-import { archiveChatSession, chatAi, deleteChatSession, getChatSessionDetail, getChatSessionPage } from '../api/ai'
+import { archiveChatSession, chatAiStream, deleteChatSession, getChatSessionDetail, getChatSessionPage } from '../api/ai'
 import appIcon from '../../picture/wut-oa-icon.png'
+import { renderMarkdown } from '../utils/markdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -442,17 +445,41 @@ async function sendAiMessage() {
   if (!question || aiSending.value) return
 
   aiMessages.value.push({ role: 'user', content: question })
+  const answerIndex = aiMessages.value.length
+  aiMessages.value.push({ role: 'assistant', content: '', citations: [], isStreaming: true })
+  const updateAnswerMessage = (patch) => {
+    const current = aiMessages.value[answerIndex]
+    if (current) aiMessages.value[answerIndex] = { ...current, ...patch }
+  }
   aiInput.value = ''
   aiSending.value = true
   await scrollAiMessagesToBottom()
   try {
-    const response = await chatAi({ question, sessionId: aiSessionId.value || undefined, knowledgeDomain: aiDomain.value, topK: 3, stream: false })
+    const response = await chatAiStream(
+      { question, sessionId: aiSessionId.value || undefined, knowledgeDomain: aiDomain.value, topK: 3 },
+      {
+        onChunk: async ({ answer, payload }) => {
+          const sessionId = payload?.sessionId ?? payload?.data?.sessionId
+          if (sessionId !== undefined && sessionId !== null) aiSessionId.value = sessionId
+          const citations = payload?.citations || payload?.data?.citations
+          updateAnswerMessage({
+            content: answer,
+            ...(citations?.length ? { citations } : {})
+          })
+          await scrollAiMessagesToBottom()
+        }
+      }
+    )
     aiSessionId.value = response.sessionId || aiSessionId.value
-    aiMessages.value.push({ role: 'assistant', content: response.answer || '暂未获得回答，请稍后重试。', citations: response.citations || [] })
+    updateAnswerMessage({
+      content: response.answer || '暂未获得回答，请稍后重试。',
+      citations: response.citations || aiMessages.value[answerIndex]?.citations || []
+    })
     await loadAiSessions()
   } catch (error) {
-    aiMessages.value.push({ role: 'assistant', content: error.message || 'AI 助手暂时无法回答，请稍后重试。' })
+    updateAnswerMessage({ content: error.message || 'AI 助手暂时无法回答，请稍后重试。' })
   } finally {
+    updateAnswerMessage({ isStreaming: false })
     aiSending.value = false
     await scrollAiMessagesToBottom()
   }
