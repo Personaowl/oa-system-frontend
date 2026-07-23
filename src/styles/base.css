@@ -1046,6 +1046,15 @@ a {
   gap: 8px;
 }
 
+.account-summary .el-avatar,
+.avatar-editor .el-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  text-align: center;
+}
+
 .account-meta {
   line-height: 1.35;
 }

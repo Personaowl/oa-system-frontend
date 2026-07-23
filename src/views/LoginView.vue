@@ -192,7 +192,7 @@ const registerFormRef = ref()
 const loading = ref(false)
 const registerLoading = ref(false)
 const registerVisible = ref(false)
-const form = reactive({ username: 'admin', password: '123456' })
+const form = reactive({ username: '', password: '' })
 const registerForm = reactive({ username: '', password: '', confirmPassword: '' })
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
