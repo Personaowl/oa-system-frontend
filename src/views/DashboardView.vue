@@ -113,7 +113,7 @@ const latestNotices = ref([])
 const currentTime = ref(new Date())
 let clockTimer
 const isReviewer = computed(() => auth.hasPermission('flow:task:approve'))
-const canViewBoard = computed(() => ['超级管理员', 'HR 人事', '部门主管'].includes(auth.role.value))
+const canViewBoard = computed(() => auth.hasPermission('attendance:statistics:query'))
 const greeting = computed(() => {
   const hour = currentTime.value.getHours()
   return hour < 6 ? '夜深了' : hour < 11 ? '早上好' : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好'

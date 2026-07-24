@@ -108,9 +108,8 @@ const canExportUsers = computed(() => auth.hasPermission('sys:user:list'))
 const canUpdateUser = computed(() => auth.hasPermission('sys:user:update'))
 const canDeleteUser = computed(() => auth.hasPermission('sys:user:delete'))
 const enabledRoles = computed(() => roles.value.filter((item) => item.status === 1))
-const isManager = computed(() => auth.role.value === '部门主管')
-const scopeName = computed(() => isManager.value ? (auth.state.profile?.department || '本部门') : '全部部门')
-const scopeDescription = computed(() => isManager.value ? '查看并管理所属部门员工，其他部门数据由后端自动隔离。' : '查看全部部门员工，并维护员工档案。')
+const scopeName = computed(() => '当前权限范围')
+const scopeDescription = computed(() => '查看并维护当前账号权限范围内的员工档案。')
 const departmentOptions = computed(() => {
   const source = departments.value.length
     ? departments.value.filter((item) => item.status === 1).map((item) => ({ label: item.name, value: item.id }))

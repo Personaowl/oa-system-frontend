@@ -311,24 +311,25 @@ const sidebarParticles = Array.from({ length: 18 }, (_, index) => ({
 const menuItems = [
   { path: '/dashboard', label: '工作台', icon: DataLine },
   { path: '/org', label: '组织权限', icon: UserFilled, children: [
-    { path: '/org/departments', label: '部门管理', icon: Collection, roles: ['超级管理员', 'HR 人事'] },
-    { path: '/org/employees', label: '员工管理', icon: UserFilled, roles: ['超级管理员', 'HR 人事', '部门主管'] }
+    { path: '/org/departments', label: '部门管理', icon: Collection, permission: 'sys:dept:list' },
+    { path: '/org/employees', label: '员工管理', icon: UserFilled, permission: 'sys:user:list' }
   ] },
-  { path: '/salary', label: '薪资管理', icon: Money, roles: ['超级管理员', 'HR 人事', '部门主管'] },
+  { path: '/rbac', label: '角色权限', icon: Lock, permission: 'sys:role:list' },
+  { path: '/salary', label: '薪资管理', icon: Money, permission: 'sys:salary:view' },
   { path: '/attendance', label: '考勤打卡', icon: Calendar },
   { path: '/approval', label: '审批流程', icon: DocumentChecked },
   { path: '/notice', label: '公告通知', icon: Bell },
   { path: '/workspace', label: '共享空间', icon: Reading },
   { path: '/assets', label: '资产管理', icon: Box },
-  { path: '/board', label: '数据看板', icon: TrendCharts, roles: ['超级管理员', 'HR 人事', '部门主管'] },
-  { path: '/screen', label: '数据大屏', icon: Monitor, roles: ['超级管理员', 'HR 人事', '部门主管'] },
-  { path: '/ai-knowledge', label: '知识文档', icon: FolderOpened, roles: ['超级管理员'] },
-  { path: '/ai-logs', label: 'AI 问答日志', icon: ChatLineSquare, roles: ['超级管理员'] }
+  { path: '/board', label: '数据看板', icon: TrendCharts, permission: 'attendance:statistics:query' },
+  { path: '/screen', label: '数据大屏', icon: Monitor, permission: 'attendance:statistics:query' },
+  { path: '/ai-knowledge', label: '知识文档', icon: FolderOpened, permission: 'system:admin' },
+  { path: '/ai-logs', label: 'AI 问答日志', icon: ChatLineSquare, permission: 'system:admin' }
 ]
 const visibleMenuItems = computed(() => menuItems.map((item) => ({
   ...item,
-  children: item.children?.filter((child) => !child.roles || child.roles.includes(auth.role.value))
-})).filter((item) => (!item.roles || item.roles.includes(auth.role.value)) && (!item.children || item.children.length)))
+  children: item.children?.filter((child) => !child.permission || auth.hasPermission(child.permission))
+})).filter((item) => (!item.permission || auth.hasPermission(item.permission)) && (!item.children || item.children.length)))
 
 watch(
   () => route.fullPath,

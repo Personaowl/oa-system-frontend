@@ -110,3 +110,10 @@ export const updateSalaryDetail = (userId, payload) => request(`/api/v1/salaries
 
 export const listRoles = () => request('/api/v1/roles')
 export const listPermissions = () => request('/api/v1/permissions')
+export const createRole = (payload) => request('/api/v1/roles', { method: 'POST', body: JSON.stringify(payload) })
+export const updateRole = (id, payload) => request(`/api/v1/roles/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+export const deleteRole = (id) => request(`/api/v1/roles/${id}`, { method: 'DELETE' })
+export const assignRolePermissions = (id, permissionIds) => request(`/api/v1/roles/${id}/permissions`, {
+  method: 'PUT',
+  body: JSON.stringify({ ids: permissionIds })
+})

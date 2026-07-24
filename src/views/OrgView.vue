@@ -8,7 +8,6 @@
       <div class="tool-row">
         <el-button :loading="loading" @click="loadAll">刷新</el-button>
         <el-button v-if="canExportDepartments" :loading="exporting" :icon="Download" @click="exportDepartmentData">导出 Excel</el-button>
-        <el-button :icon="Lock" @click="permissionDialogVisible = true">角色权限</el-button>
         <el-button v-if="canCreateDepartment" type="primary" :icon="Plus" @click="openDepartment()">新增部门</el-button>
       </div>
     </div>
@@ -82,49 +81,17 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="permissionDialogVisible" title="RBAC 角色权限" width="min(820px, 92vw)" destroy-on-close>
-      <div class="rbac-overview">
-        <div>
-          <div class="rbac-overview-title">角色权限概览</div>
-          <div class="rbac-overview-desc">权限数据来自 user-service，授权变化后用户重新登录即可生效。</div>
-        </div>
-        <div class="rbac-stat-list">
-          <div class="rbac-stat"><strong>{{ roles.length }}</strong><span>个角色</span></div>
-          <div class="rbac-stat"><strong>{{ permissions.length }}</strong><span>项权限</span></div>
-        </div>
-      </div>
-      <el-skeleton :loading="loading" animated :rows="4">
-        <el-collapse accordion class="role-collapse">
-          <el-collapse-item v-for="item in roleMatrix" :key="item.id" :name="item.id">
-            <template #title>
-              <div class="role-collapse-title">
-                <span class="role-avatar" aria-hidden="true"></span>
-                <span class="role-identity"><strong>{{ item.name }}</strong><small>{{ item.code }}</small></span>
-                <el-tag round effect="plain" size="small">{{ item.permissions.length }} 项权限</el-tag>
-              </div>
-            </template>
-            <div class="permission-list">
-              <el-tag v-for="permission in item.permissions" :key="permission.id" effect="light" round>
-                {{ permission.name }}
-              </el-tag>
-              <el-empty v-if="!item.permissions.length" description="该角色暂未分配权限" :image-size="56" />
-            </div>
-          </el-collapse-item>
-        </el-collapse>
-      </el-skeleton>
-    </el-dialog>
-
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Lock, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { Download, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import {
   createDepartment, deleteDepartment, exportDepartments,
-  listDepartments, listPermissions, listRoles, listUsers,
+  listDepartments, listUsers,
   updateDepartment
 } from '../api/organization'
 import SectionTitle from '../components/SectionTitle.vue'
@@ -135,10 +102,7 @@ const saving = ref(false)
 const exporting = ref(false)
 const departments = ref([])
 const employees = ref([])
-const roles = ref([])
-const permissions = ref([])
 const departmentDialogVisible = ref(false)
-const permissionDialogVisible = ref(false)
 const departmentFormRef = ref()
 const departmentForm = reactive({ id: '', name: '', parentId: null, managerId: null, assistantManagerIds: [], sortOrder: 0, enabled: true })
 
@@ -149,26 +113,21 @@ const canDeleteDepartment = computed(() => auth.hasPermission('sys:dept:delete')
 const departmentOptions = computed(() => departments.value.filter((item) => item.status === 1).map((item) => ({ label: item.name, value: item.id })))
 const parentDepartmentOptions = computed(() => departmentOptions.value.filter((item) => item.value !== departmentForm.id))
 const managerOptions = computed(() => employees.value
-  .filter((item) => item.status === 1 && (item.roleCodes || []).some((code) => ['MANAGER', 'ROLE_MANAGER'].includes(String(code).toUpperCase())))
+  .filter((item) => item.status === 1)
   .map((item) => ({ label: item.displayName, value: item.id })))
 const assistantManagerOptions = computed(() => managerOptions.value
   .filter((item) => String(item.value) !== String(departmentForm.managerId || '')))
-const roleMatrix = computed(() => {
-  const permissionMap = new Map(permissions.value.map((item) => [String(item.id), item]))
-  return roles.value.map((role) => ({ ...role, permissions: (role.permissionIds || []).map((id) => permissionMap.get(String(id))).filter(Boolean) }))
-})
 const departmentRules = { name: [{ required: true, message: '请输入部门名称', trigger: 'blur' }] }
 
 async function loadAll() {
   loading.value = true
   try {
-    const [departmentData, userPage, roleData, permissionData] = await Promise.all([
-      listDepartments(), listUsers({ page: 1, size: 100 }), listRoles(), listPermissions()
+    const [departmentData, userPage] = await Promise.all([
+      listDepartments(),
+      auth.hasPermission('sys:user:list') ? listUsers({ page: 1, size: 100 }) : Promise.resolve({ records: [] })
     ])
     departments.value = departmentData || []
     employees.value = userPage?.records || []
-    roles.value = roleData || []
-    permissions.value = permissionData || []
   } catch (error) {
     ElMessage.error(error.message || '组织数据加载失败')
   } finally { loading.value = false }

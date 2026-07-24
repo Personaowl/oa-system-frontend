@@ -114,10 +114,7 @@ const departmentFilter = ref(null)
 const form = reactive({ id: '', displayName: '', username: '', departmentName: '', salaryGrade: '13A', performanceSalary: 0, deductionSalary: 0 })
 
 const canUpdate = computed(() => auth.hasPermission('sys:salary:update'))
-const isManager = computed(() => auth.role.value === '部门主管')
-const scopeDescription = computed(() => isManager.value
-  ? '仅显示并维护所属部门员工薪资，数据范围由后端校验。'
-  : '集中维护员工职级、月基础薪资、绩效和扣除工资。')
+const scopeDescription = computed(() => '集中维护权限范围内员工的职级、月基础薪资、绩效和扣除工资。')
 const departmentOptions = computed(() => {
   const source = departments.value.length
     ? departments.value.filter((item) => item.status === 1).map((item) => ({ label: item.name, value: item.id }))
