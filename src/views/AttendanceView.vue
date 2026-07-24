@@ -7,6 +7,7 @@
       </div>
       <div class="tool-row">
         <el-button :loading="loading" @click="loadAll">刷新</el-button>
+        <el-button :icon="Download" :loading="exporting" @click="exportRecords">导出 Excel</el-button>
         <el-button v-if="canManageRule" :icon="Setting" @click="openRuleDialog">考勤规则</el-button>
         <el-button v-if="canManageRule" :icon="Calendar" @click="openScheduleDialog">排班日历</el-button>
         <el-button :icon="EditPen" @click="openCorrectionDialog">
@@ -52,6 +53,7 @@
             <el-table-column prop="workDate" label="日期" width="115" />
             <el-table-column label="上班时间" min-width="145"><template #default="{ row }">{{ formatDateTime(row.checkInTime) }}</template></el-table-column>
             <el-table-column label="下班时间" min-width="145"><template #default="{ row }">{{ formatDateTime(row.checkOutTime) }}</template></el-table-column>
+            <el-table-column label="实际工时" min-width="115"><template #default="{ row }"><strong class="work-duration">{{ row.checkOutTime ? formatWorkMinutes(row.actualWorkMinutes) : '--' }}</strong></template></el-table-column>
             <el-table-column label="状态" width="130"><template #default="{ row }"><span class="status-pill" :class="pillClass(row.status)">{{ statusLabel(row.status) }}</span></template></el-table-column>
             <el-table-column label="异常时长" min-width="130"><template #default="{ row }">{{ exceptionText(row) }}</template></el-table-column>
           </el-table>
@@ -72,6 +74,7 @@
           <el-timeline-item timestamp="上班打卡" placement="top" :type="today.checkInTime ? 'primary' : 'info'">{{ today.checkInTime ? formatDateTime(today.checkInTime) : '等待打卡' }}</el-timeline-item>
           <el-timeline-item timestamp="下班打卡" placement="top" :type="today.checkOutTime ? 'success' : 'info'">{{ today.checkOutTime ? formatDateTime(today.checkOutTime) : '等待打卡' }}</el-timeline-item>
         </el-timeline>
+        <div v-if="today.checkOutTime" class="today-work-duration"><span>今日实际工时</span><strong>{{ formatWorkMinutes(today.actualWorkMinutes) }}</strong></div>
         <div class="attendance-rule-note">
           <strong>{{ todaySchedule.workingDay ? `今日班次 · ${todaySchedule.shiftName || '标准班次'}` : (todaySchedule.holidayName || '今日休息') }}</strong>
           <span v-if="todaySchedule.workingDay">{{ shortTime(todaySchedule.workStart) }}–{{ shortTime(todaySchedule.workEnd) }}，{{ todaySchedule.lateThresholdMinutes }} 分钟宽限；超过 {{ scheduleLateBoundary }} 计为迟到。</span>
@@ -249,8 +252,8 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Calendar, CircleCloseFilled, Clock, EditPen, Finished, Setting, Timer, WarningFilled } from '@element-plus/icons-vue'
-import { checkIn, checkOut, createAttendanceCorrection, createAttendanceShift, createShiftAssignment, deleteCalendarOverride, deleteShiftAssignment, getAttendanceRule, getAttendanceScope, getAttendanceSummary, getMonthlyStatistics, getTodayStatus, getTodayWorkSchedule, listAttendanceRecords, listAttendanceShifts, listCalendarOverrides, listMyAttendanceCorrections, listPendingAttendanceCorrections, listShiftAssignments, reviewAttendanceCorrection, updateAttendanceRule, updateAttendanceShift, updateCalendarOverride } from '../api/attendance'
+import { Calendar, CircleCloseFilled, Clock, Download, EditPen, Finished, Setting, Timer, WarningFilled } from '@element-plus/icons-vue'
+import { checkIn, checkOut, createAttendanceCorrection, createAttendanceShift, createShiftAssignment, deleteCalendarOverride, deleteShiftAssignment, exportAttendanceRecords, getAttendanceRule, getAttendanceScope, getAttendanceSummary, getMonthlyStatistics, getTodayStatus, getTodayWorkSchedule, listAttendanceRecords, listAttendanceShifts, listCalendarOverrides, listMyAttendanceCorrections, listPendingAttendanceCorrections, listShiftAssignments, reviewAttendanceCorrection, updateAttendanceRule, updateAttendanceShift, updateCalendarOverride } from '../api/attendance'
 import { useAuthStore } from '../stores/auth'
 import SectionTitle from '../components/SectionTitle.vue'
 import StatCard from '../components/StatCard.vue'
@@ -258,6 +261,7 @@ import StatCard from '../components/StatCard.vue'
 const auth = useAuthStore()
 const loading = ref(false)
 const loadingRecords = ref(false)
+const exporting = ref(false)
 const punching = ref(false)
 const savingRule = ref(false)
 const ruleDialogVisible = ref(false)
@@ -281,7 +285,7 @@ const dateRange = ref([])
 const statusFilter = ref('')
 const departmentFilter = ref('')
 const userFilter = ref('')
-const today = reactive({ workDate: '', checkInTime: null, checkOutTime: null, status: null, canCheckIn: false, canCheckOut: false })
+const today = reactive({ workDate: '', checkInTime: null, checkOutTime: null, status: null, canCheckIn: false, canCheckOut: false, actualWorkMinutes: 0 })
 const monthly = reactive({ totalRecords: 0, normalCount: 0, lateCount: 0, earlyLeaveCount: 0, missingCheckOutCount: 0, missingCheckInCount: 0, absentCount: 0 })
 const summary = reactive({ totalRecords: 0, totalUsers: 0, normalCount: 0, lateCount: 0, earlyLeaveCount: 0, missingCheckOutCount: 0, missingCheckInCount: 0, absentCount: 0 })
 const scope = reactive({ dataScope: 'SELF', scopeNote: '', departments: [], users: [] })
@@ -366,6 +370,15 @@ function formatDateTime(value) {
   }).format(new Date(value))
 }
 
+function formatWorkMinutes(value) {
+  const minutes = Math.max(0, Number(value || 0))
+  if (!minutes) return '0 分钟'
+  const hours = Math.floor(minutes / 60)
+  const remainder = minutes % 60
+  if (!hours) return `${remainder} 分钟`
+  return `${hours} 小时${remainder ? ` ${remainder} 分钟` : ''}`
+}
+
 function pillClass(status) {
   if (['NORMAL', 'LEAVE'].includes(status)) return 'is-success'
   if (['LATE', 'EARLY_LEAVE', 'LATE_AND_EARLY_LEAVE', 'IN_PROGRESS_LATE'].includes(status)) return 'is-warning'
@@ -443,6 +456,24 @@ function calendarMonthRange() {
   return {
     startDate: `${year}-${String(month).padStart(2, '0')}-01`,
     endDate: `${year}-${String(month).padStart(2, '0')}-${String(end).padStart(2, '0')}`
+  }
+}
+
+async function exportRecords() {
+  exporting.value = true
+  try {
+    const fileName = await exportAttendanceRecords({
+      startDate: dateRange.value?.[0],
+      endDate: dateRange.value?.[1],
+      status: statusFilter.value,
+      userId: userFilter.value,
+      departmentId: departmentFilter.value
+    })
+    ElMessage.success(`已导出 ${fileName}`)
+  } catch (error) {
+    ElMessage.error(error.message || '考勤记录导出失败')
+  } finally {
+    exporting.value = false
   }
 }
 
@@ -732,7 +763,8 @@ async function doCheckOut() {
   punching.value = true
   try {
     const result = await checkOut()
-    ElMessage.success(result?.earlyLeave ? `下班打卡成功，早退 ${result.earlyLeaveMinutes} 分钟` : '下班打卡成功')
+    const duration = formatWorkMinutes(result?.actualWorkMinutes)
+    ElMessage.success(result?.earlyLeave ? `下班打卡成功，工时 ${duration}，早退 ${result.earlyLeaveMinutes} 分钟` : `下班打卡成功，今日工时 ${duration}`)
     await loadAll()
   } catch (error) {
     ElMessage.warning(error.message || '下班打卡失败')
@@ -762,6 +794,10 @@ onMounted(loadAll)
 .today-status-dot { width: 10px; height: 10px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 0 5px rgb(59 130 246 / 12%); }
 .is-complete .today-status-dot { background: #22c55e; box-shadow: 0 0 0 5px rgb(34 197 94 / 12%); }
 .attendance-timeline { padding: 2px 4px; }
+.work-duration { color: #2563eb; font-size: 13px; }
+.today-work-duration { display: flex; align-items: center; justify-content: space-between; margin: -5px 0 14px; padding: 12px 14px; border-radius: 10px; background: #eef6ff; }
+.today-work-duration span { color: var(--muted); font-size: 12px; }
+.today-work-duration strong { color: #2563eb; font-size: 16px; }
 .attendance-rule-note { display: flex; flex-direction: column; gap: 5px; padding: 13px 15px; border-radius: 10px; background: var(--panel-soft, #f8fafc); }
 .attendance-rule-note strong { font-size: 13px; }
 .attendance-rule-note span { color: var(--muted); font-size: 12px; line-height: 1.6; }

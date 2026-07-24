@@ -46,11 +46,46 @@ async function request(path, options = {}) {
   return unwrap(body)
 }
 
+async function download(path, fallbackName) {
+  const auth = useAuthStore()
+  const headers = new Headers()
+  if (auth.state.token && !auth.state.token.startsWith('cookie-session-')) headers.set('Authorization', `Bearer ${auth.state.token}`)
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { credentials: 'include', headers })
+  } catch {
+    throw new Error('无法连接考勤服务，请确认网关和考勤服务已启动')
+  }
+  if (response.status === 401) {
+    auth.logout()
+    window.dispatchEvent(new Event('auth-expired'))
+    throw new Error('登录状态已过期，请重新登录')
+  }
+  if (!response.ok) {
+    const body = await parseBody(response)
+    throw new Error(body?.message || body?.msg || `导出失败（${response.status}）`)
+  }
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  let fileName = fallbackName
+  if (encodedName) try { fileName = decodeURIComponent(encodedName) } catch { /* use fallback */ }
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+  return fileName
+}
+
 export const checkIn = () => request('/api/v1/attendance/check-in', { method: 'POST' })
 export const checkOut = () => request('/api/v1/attendance/check-out', { method: 'POST' })
 export const getTodayStatus = () => request('/api/v1/attendance/today')
 export const getAttendanceScope = () => request('/api/v1/attendance/scope')
 export const listAttendanceRecords = (params) => request(`/api/v1/attendance/records${queryString(params)}`)
+export const exportAttendanceRecords = (params = {}) => download(`/api/v1/attendance/records/export${queryString(params)}`, '考勤记录.xlsx')
 export async function listAllAttendanceRecords(params = {}) {
   const first = await listAttendanceRecords({ ...params, page: 1, size: 100 })
   const items = [...(first?.items || [])]
