@@ -100,7 +100,13 @@ export const exportUsers = (params = {}) => downloadExport(`/api/v1/users/export
 export const createUser = (payload) => request('/api/v1/users', { method: 'POST', body: JSON.stringify(payload) })
 export const updateUser = (id, payload) => request(`/api/v1/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
 export const deleteUser = (id) => request(`/api/v1/users/${id}`, { method: 'DELETE' })
-export const updateUserSalary = (id, salary) => request(`/api/v1/users/${id}/salary`, { method: 'PUT', body: JSON.stringify({ salary }) })
+
+export const listSalaries = (params = {}) => request(`/api/v1/salaries${queryString(params)}`)
+export const listSalaryGrades = () => request('/api/v1/salaries/grades')
+export const updateSalaryDetail = (userId, payload) => request(`/api/v1/salaries/${userId}`, {
+  method: 'PUT',
+  body: JSON.stringify(payload)
+})
 
 export const listRoles = () => request('/api/v1/roles')
 export const listPermissions = () => request('/api/v1/permissions')

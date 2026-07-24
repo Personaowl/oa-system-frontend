@@ -4,6 +4,7 @@ import ShellLayout from '../layouts/ShellLayout.vue'
 import DashboardView from '../views/DashboardView.vue'
 import OrgView from '../views/OrgView.vue'
 import EmployeeView from '../views/EmployeeView.vue'
+import SalaryView from '../views/SalaryView.vue'
 import AttendanceView from '../views/AttendanceView.vue'
 import ApprovalView from '../views/ApprovalView.vue'
 import NoticeView from '../views/NoticeView.vue'
@@ -25,6 +26,7 @@ const routes = [
       { path: 'org', redirect: '/org/departments' },
       { path: 'org/departments', name: 'departments', component: OrgView, meta: { title: '部门管理', roles: ['超级管理员', 'HR 人事'] } },
       { path: 'org/employees', name: 'employees', component: EmployeeView, meta: { title: '员工管理', roles: ['超级管理员', 'HR 人事', '部门主管'] } },
+      { path: 'salary', name: 'salary', component: SalaryView, meta: { title: '薪资管理', roles: ['超级管理员', 'HR 人事', '部门主管'] } },
       { path: 'attendance', name: 'attendance', component: AttendanceView, meta: { title: '考勤打卡' } },
       { path: 'approval', name: 'approval', component: ApprovalView, meta: { title: '审批流程' } },
       { path: 'notice', name: 'notice', component: NoticeView, meta: { title: '公告通知' } },

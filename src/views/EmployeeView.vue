@@ -13,7 +13,7 @@
     </div>
 
     <section class="panel section">
-      <SectionTitle title="员工档案" subtitle="员工账号、组织归属、角色和月基本薪资均来自 user-service。">
+      <SectionTitle title="员工档案" subtitle="员工账号、组织归属和角色信息均来自 user-service，薪资请前往独立的薪资管理页面维护。">
         <template #extra>
           <div class="employee-filter-row">
             <el-input v-model="keyword" clearable placeholder="姓名 / 登录账号" class="employee-search" />
@@ -27,7 +27,7 @@
       <div class="employee-summary">
         <div><span>当前范围</span><strong>{{ scopeName }}</strong></div>
         <div><span>员工数量</span><strong>{{ filteredEmployees.length }}</strong></div>
-        <div><span>月薪资合计</span><strong>{{ formatSalary(totalSalary) }}</strong></div>
+        <div><span>在职员工</span><strong>{{ activeEmployeeCount }}</strong></div>
       </div>
 
       <div class="table-wrap">
@@ -38,16 +38,12 @@
           <el-table-column label="角色" min-width="130">
             <template #default="{ row }">{{ roleNames(row) }}</template>
           </el-table-column>
-          <el-table-column v-if="canViewSalary" label="月基本薪资" width="145" align="right">
-            <template #default="{ row }"><strong class="salary-value">{{ formatSalary(row.salary) }}</strong></template>
-          </el-table-column>
           <el-table-column prop="phone" label="联系电话" width="145" />
           <el-table-column label="状态" width="90">
             <template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '停用' }}</el-tag></template>
           </el-table-column>
-          <el-table-column v-if="canUpdateUser || canDeleteUser || canUpdateSalary" label="操作" width="190" fixed="right">
+          <el-table-column v-if="canUpdateUser || canDeleteUser" label="操作" width="140" fixed="right">
             <template #default="{ row }">
-              <el-button v-if="canUpdateSalary" link type="success" @click="openSalary(row)">调薪</el-button>
               <el-button v-if="canUpdateUser" link type="primary" @click="openEmployee(row)">编辑</el-button>
               <el-button v-if="canDeleteUser" link type="danger" @click="removeEmployee(row)">删除</el-button>
             </template>
@@ -83,22 +79,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="salaryDialogVisible" title="调整员工薪资" width="420px" destroy-on-close>
-      <div class="salary-employee-card">
-        <strong>{{ salaryForm.displayName }}</strong>
-        <span>{{ salaryForm.departmentName }} · {{ salaryForm.username }}</span>
-      </div>
-      <el-form label-position="top" @submit.prevent="saveSalary">
-        <el-form-item label="月基本薪资（元）">
-          <el-input-number v-model="salaryForm.salary" :min="0" :max="9999999999.99" :precision="2" :step="500" controls-position="right" style="width: 100%" />
-        </el-form-item>
-        <div class="salary-tip">薪资属于敏感信息，操作范围由后端按当前账号角色和所属部门校验。</div>
-      </el-form>
-      <template #footer>
-        <el-button @click="salaryDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveSalary">确认调整</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -107,7 +87,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Plus } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
-import { createUser, deleteUser, exportUsers, listDepartments, listRoles, listUsers, updateUser, updateUserSalary } from '../api/organization'
+import { createUser, deleteUser, exportUsers, listDepartments, listRoles, listUsers, updateUser } from '../api/organization'
 import SectionTitle from '../components/SectionTitle.vue'
 
 const auth = useAuthStore()
@@ -120,21 +100,17 @@ const roles = ref([])
 const keyword = ref('')
 const departmentFilter = ref(null)
 const employeeDialogVisible = ref(false)
-const salaryDialogVisible = ref(false)
 const employeeFormRef = ref()
 const employeeForm = reactive({ id: '', displayName: '', username: '', password: '', phone: '', email: '', departmentId: null, roleIds: [], enabled: true })
-const salaryForm = reactive({ id: '', displayName: '', username: '', departmentName: '', salary: 0 })
 
 const canCreateUser = computed(() => auth.hasPermission('sys:user:create'))
 const canExportUsers = computed(() => auth.hasPermission('sys:user:list'))
 const canUpdateUser = computed(() => auth.hasPermission('sys:user:update'))
 const canDeleteUser = computed(() => auth.hasPermission('sys:user:delete'))
-const canViewSalary = computed(() => auth.hasPermission('sys:salary:view'))
-const canUpdateSalary = computed(() => auth.hasPermission('sys:salary:update'))
 const enabledRoles = computed(() => roles.value.filter((item) => item.status === 1))
 const isManager = computed(() => auth.role.value === '部门主管')
 const scopeName = computed(() => isManager.value ? (auth.state.profile?.department || '本部门') : '全部部门')
-const scopeDescription = computed(() => isManager.value ? '查看并管理所属部门员工，其他部门数据由后端自动隔离。' : '查看全部部门员工，并维护员工档案与薪资。')
+const scopeDescription = computed(() => isManager.value ? '查看并管理所属部门员工，其他部门数据由后端自动隔离。' : '查看全部部门员工，并维护员工档案。')
 const departmentOptions = computed(() => {
   const source = departments.value.length
     ? departments.value.filter((item) => item.status === 1).map((item) => ({ label: item.name, value: item.id }))
@@ -148,7 +124,7 @@ const filteredEmployees = computed(() => {
     return matchesKeyword && (!departmentFilter.value || String(item.departmentId) === String(departmentFilter.value))
   })
 })
-const totalSalary = computed(() => filteredEmployees.value.reduce((sum, item) => sum + Number(item.salary || 0), 0))
+const activeEmployeeCount = computed(() => filteredEmployees.value.filter((item) => item.status === 1).length)
 const employeeRules = {
   displayName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   username: [{ required: true, message: '请输入登录账号', trigger: 'blur' }],
@@ -157,10 +133,6 @@ const employeeRules = {
   roleIds: [{ type: 'array', required: true, min: 1, message: '请至少选择一个角色', trigger: 'change' }]
 }
 const roleLabel = { ADMIN: '系统管理员', HR: 'HR 人事', MANAGER: '部门主管', EMPLOYEE: '普通员工' }
-
-function formatSalary(value) {
-  return Number(value || 0).toLocaleString('zh-CN', { style: 'currency', currency: 'CNY', minimumFractionDigits: 2 })
-}
 
 function roleNames(row) {
   if (roles.value.length) {
@@ -226,21 +198,6 @@ async function saveEmployee() {
   } catch (error) { ElMessage.error(error.message || '保存失败') } finally { saving.value = false }
 }
 
-function openSalary(row) {
-  Object.assign(salaryForm, { id: row.id, displayName: row.displayName, username: row.username, departmentName: row.departmentName || '未分配部门', salary: Number(row.salary || 0) })
-  salaryDialogVisible.value = true
-}
-
-async function saveSalary() {
-  saving.value = true
-  try {
-    await updateUserSalary(salaryForm.id, salaryForm.salary)
-    salaryDialogVisible.value = false
-    ElMessage.success('薪资已调整')
-    await loadAll()
-  } catch (error) { ElMessage.error(error.message || '薪资调整失败') } finally { saving.value = false }
-}
-
 async function removeEmployee(row) {
   try {
     await ElMessageBox.confirm(`确认删除员工“${row.displayName}”吗？`, '删除员工', { type: 'warning' })
@@ -262,9 +219,6 @@ onMounted(loadAll)
 .employee-summary > div { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
 .employee-summary span { display: block; color: var(--muted); font-size: 12px; }
 .employee-summary strong { display: block; margin-top: 5px; color: var(--text); font-size: 18px; }
-.salary-value { color: #16794b; font-variant-numeric: tabular-nums; }
-.salary-employee-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; margin-bottom: 16px; border-radius: 12px; background: #f3f7ff; }
-.salary-employee-card span, .salary-tip { color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) {
   .employee-summary { grid-template-columns: 1fr; }
   .employee-filter-row { width: 100%; justify-content: stretch; }

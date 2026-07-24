@@ -240,7 +240,8 @@ import {
   Plus,
   Collection,
   Reading,
-  Box
+  Box,
+  Money
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { archiveChatSession, chatAiStream, deleteChatSession, getChatSessionDetail, getChatSessionPage } from '../api/ai'
@@ -313,6 +314,7 @@ const menuItems = [
     { path: '/org/departments', label: '部门管理', icon: Collection, roles: ['超级管理员', 'HR 人事'] },
     { path: '/org/employees', label: '员工管理', icon: UserFilled, roles: ['超级管理员', 'HR 人事', '部门主管'] }
   ] },
+  { path: '/salary', label: '薪资管理', icon: Money, roles: ['超级管理员', 'HR 人事', '部门主管'] },
   { path: '/attendance', label: '考勤打卡', icon: Calendar },
   { path: '/approval', label: '审批流程', icon: DocumentChecked },
   { path: '/notice', label: '公告通知', icon: Bell },
