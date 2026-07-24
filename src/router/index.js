@@ -34,6 +34,12 @@ const routes = [
         component: () => import('../views/SharedWorkspaceView.vue'),
         meta: { title: '共享空间' }
       },
+      {
+        path: 'assets',
+        name: 'asset-management',
+        component: () => import('../views/AssetManagementView.vue'),
+        meta: { title: '资产管理' }
+      },
       { path: 'board', name: 'board', component: BoardView, meta: { title: '数据看板', roles: ['超级管理员', 'HR 人事', '部门主管'] } },
       { path: 'ai-knowledge', name: 'ai-knowledge', component: AiKnowledgeView, meta: { title: '知识文档管理', roles: ['超级管理员'] } },
       { path: 'ai-logs', name: 'ai-logs', component: AiLogView, meta: { title: 'AI 问答日志', roles: ['超级管理员'] } }
