@@ -88,10 +88,35 @@
           <el-empty v-if="!noticeItems.length" description="暂无公告动态" :image-size="62" />
         </div>
       </section>
+
+      <ScreenChart title="固定资产状态" kicker="ASSET LIFECYCLE" :badge="`${assetOverview.fixedAssetCount || 0} 件资产`" :option="assetStatusOption" />
+
+      <section class="screen-panel collaboration-panel">
+        <header class="simple-panel-head">
+          <div><span>COLLABORATION &amp; INVENTORY</span><h3>协同空间与物资运行</h3></div>
+          <em>{{ documentWorkspaces.length }} 个工作空间</em>
+        </header>
+        <div class="collaboration-body">
+          <div class="collaboration-stats">
+            <div><el-icon><FolderOpened /></el-icon><span>共享文档<strong>{{ documentCount }}</strong><small>部门知识持续沉淀</small></span></div>
+            <div><el-icon><Present /></el-icon><span>用品种类<strong>{{ assetOverview.supplyKinds || 0 }}</strong><small>办公用品库存台账</small></span></div>
+            <div :class="{ alert: assetOverview.lowStockKinds }"><el-icon><WarningFilled /></el-icon><span>库存预警<strong>{{ assetOverview.lowStockKinds || 0 }}</strong><small>低于或等于安全库存</small></span></div>
+            <div><el-icon><Tickets /></el-icon><span>申领待办<strong>{{ assetOverview.pendingRequests || 0 }}</strong><small>当前权限范围内待处理</small></span></div>
+          </div>
+          <div class="workspace-overview">
+            <div v-for="workspace in documentWorkspaces.slice(0, 5)" :key="workspace.departmentId" class="workspace-row">
+              <span>{{ workspace.departmentName }}</span>
+              <i><b :style="{ width: workspacePercent(workspace.documentCount) + '%' }"></b></i>
+              <strong>{{ workspace.documentCount || 0 }} 篇</strong>
+            </div>
+            <el-empty v-if="!documentWorkspaces.length" description="暂无共享文档" :image-size="54" />
+          </div>
+        </div>
+      </section>
     </section>
 
     <footer class="screen-footer">
-      <span><i></i> 数据来源：用户、考勤、审批与公告服务</span>
+      <span><i></i> 数据来源：用户、考勤、审批、公告、文档与资产服务</span>
       <strong>上次同步 {{ lastUpdatedText }}</strong>
       <span>每 60 秒自动刷新 <i></i></span>
     </footer>
@@ -105,18 +130,23 @@ import { ElMessage } from 'element-plus'
 import {
   Aim,
   ArrowLeft,
-  Bell,
+  Box,
   Calendar,
   DocumentChecked,
+  FolderOpened,
   FullScreen,
-  OfficeBuilding,
+  Present,
   Refresh,
+  Tickets,
+  WarningFilled,
   UserFilled
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { getAttendanceScope, listAllAttendanceRecords } from '../api/attendance'
 import { listDoneFlowTasks, listMyFlowRequests, listTodoFlowTasks } from '../api/flows'
 import { listPublicNotices } from '../api/notices'
+import { getAssetOverview, listSupplies } from '../api/assets'
+import { listDocumentWorkspaces } from '../api/documents'
 import ScreenChart from '../components/ScreenChart.vue'
 
 const auth = useAuthStore()
@@ -132,7 +162,10 @@ const todoTasks = ref([])
 const doneTasks = ref([])
 const noticeItems = ref([])
 const noticeTotal = ref(0)
-const displayMetrics = reactive({ employees: 0, departments: 0, attendance: 0, pending: 0, notices: 0 })
+const assetOverview = reactive({ supplyKinds: 0, lowStockKinds: 0, pendingRequests: 0, fixedAssetCount: 0, inUseAssets: 0, idleAssets: 0 })
+const supplies = ref([])
+const documentWorkspaces = ref([])
+const displayMetrics = reactive({ employees: 0, attendance: 0, pending: 0, assets: 0, documents: 0, lowStock: 0 })
 let clockTimer
 let refreshTimer
 let numberAnimation
@@ -168,12 +201,14 @@ const departmentRows = computed(() => scope.departments.map((department) => ({
   people: scope.users.filter((user) => String(user.departmentId) === String(department.id)).length
 })).sort((a, b) => b.people - a.people))
 const pendingCount = computed(() => isReviewer.value ? todoTasks.value.length : myRequests.value.filter((item) => item.status === 'PENDING').length)
+const documentCount = computed(() => documentWorkspaces.value.reduce((sum, item) => sum + Number(item.documentCount || 0), 0))
 const metricCards = computed(() => [
   { label: '在职员工', value: displayMetrics.employees, unit: '人', hint: '当前权限统计范围', icon: UserFilled, color: '#7080e8', soft: '#eef1ff' },
-  { label: '组织部门', value: displayMetrics.departments, unit: '个', hint: '组织架构持续运转', icon: OfficeBuilding, color: '#9b75df', soft: '#f5efff' },
   { label: '今日出勤', value: displayMetrics.attendance, unit: '人', hint: `${normalTodayCount.value} 人状态正常`, icon: Calendar, color: '#48b9c8', soft: '#ebf9fb' },
   { label: '待办审批', value: displayMetrics.pending, unit: '项', hint: '需要及时跟进处理', icon: DocumentChecked, color: '#efa958', soft: '#fff5e9' },
-  { label: '公告总量', value: displayMetrics.notices, unit: '条', hint: '信息持续同步更新', icon: Bell, color: '#48b789', soft: '#ebf8f2' }
+  { label: '固定资产', value: displayMetrics.assets, unit: '件', hint: `${assetOverview.inUseAssets || 0} 件使用中`, icon: Box, color: '#9b75df', soft: '#f5efff' },
+  { label: '共享文档', value: displayMetrics.documents, unit: '篇', hint: `${documentWorkspaces.value.length} 个部门空间`, icon: FolderOpened, color: '#48b789', soft: '#ebf8f2' },
+  { label: '库存预警', value: displayMetrics.lowStock, unit: '项', hint: `${supplies.value.length} 种用品在线`, icon: WarningFilled, color: '#ec7890', soft: '#fff0f3' }
 ])
 
 const axis = { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#8b97aa', fontSize: 10 } }
@@ -249,10 +284,32 @@ const todayAttendanceOption = computed(() => ({
     }]
   }]
 }))
+const assetStatusOption = computed(() => {
+  const idle = Number(assetOverview.idleAssets || 0)
+  const inUse = Number(assetOverview.inUseAssets || 0)
+  const other = Math.max(0, Number(assetOverview.fixedAssetCount || 0) - idle - inUse)
+  return {
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 4, icon: 'circle', itemWidth: 8, itemHeight: 8, textStyle: { color: '#718097', fontSize: 9 } },
+    series: [{
+      type: 'pie', center: ['50%', '43%'], radius: ['48%', '70%'], padAngle: 3,
+      label: { show: false }, itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+      data: [
+        { value: inUse, name: '使用中', itemStyle: { color: '#7182ea' } },
+        { value: idle, name: '闲置可用', itemStyle: { color: '#48b789' } },
+        { value: other, name: '维修/报废', itemStyle: { color: '#efa958' } }
+      ]
+    }]
+  }
+})
 
 function departmentPercent(value) {
   const max = departmentRows.value[0]?.people || 1
   return Math.max(value ? 12 : 0, Math.round(value / max * 100))
+}
+function workspacePercent(value) {
+  const max = Math.max(1, ...documentWorkspaces.value.map((item) => Number(item.documentCount || 0)))
+  return Math.max(value ? 12 : 0, Math.round(Number(value || 0) / max * 100))
 }
 function localDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -283,13 +340,16 @@ async function loadData() {
   loading.value = true
   const errors = []
   try {
-    const [scopeData, attendance, mine, todo, done, notices] = await Promise.all([
+    const [scopeData, attendance, mine, todo, done, notices, assets, supplyRows, workspaces] = await Promise.all([
       safe(getAttendanceScope(), { dataScope: '', scopeNote: '', departments: [], users: [] }, errors),
       safe(listAllAttendanceRecords({ startDate: recentDays.value[0].key, endDate: recentDays.value[6].key }), { items: [] }, errors),
       safe(listMyFlowRequests(), [], errors),
       isReviewer.value ? safe(listTodoFlowTasks(), [], errors) : Promise.resolve([]),
       isReviewer.value ? safe(listDoneFlowTasks(), [], errors) : Promise.resolve([]),
-      safe(listPublicNotices({ page: 1, size: 5 }), { total: 0, records: [] }, errors)
+      safe(listPublicNotices({ page: 1, size: 5 }), { total: 0, records: [] }, errors),
+      safe(getAssetOverview(), {}, errors),
+      safe(listSupplies(), [], errors),
+      safe(listDocumentWorkspaces(), [], errors)
     ])
     Object.assign(scope, scopeData || {})
     attendanceRecords.value = attendance?.items || []
@@ -298,13 +358,17 @@ async function loadData() {
     doneTasks.value = Array.isArray(done) ? done : []
     noticeItems.value = notices?.records || notices?.items || notices?.list || []
     noticeTotal.value = Number(notices?.total || noticeItems.value.length)
+    Object.assign(assetOverview, assets || {})
+    supplies.value = Array.isArray(supplyRows) ? supplyRows : []
+    documentWorkspaces.value = Array.isArray(workspaces) ? workspaces : []
     lastUpdated.value = new Date()
     animateMetricValues({
       employees: scope.users.length,
-      departments: scope.departments.length,
       attendance: todayRecords.value.length,
       pending: pendingCount.value,
-      notices: noticeTotal.value
+      assets: Number(assetOverview.fixedAssetCount || 0),
+      documents: documentCount.value,
+      lowStock: Number(assetOverview.lowStockKinds || 0)
     })
     if (errors.length) ElMessage.warning(`有 ${errors.length} 项大屏数据暂时无法获取`)
   } finally {
@@ -346,7 +410,10 @@ onUnmounted(() => {
 .notice-stream{display:grid;padding:2px 20px 14px}.notice-stream article{display:grid;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid #edf1f6}.notice-stream article:last-child{border-bottom:0}.notice-dot{width:7px;height:7px;border-radius:50%;background:#7182ea;box-shadow:0 0 0 5px rgba(113,130,234,.1)}.notice-dot.tone-1{background:#4dbb94;box-shadow:0 0 0 5px rgba(77,187,148,.1)}.notice-dot.tone-2{background:#efa958;box-shadow:0 0 0 5px rgba(239,169,88,.1)}.notice-dot.tone-3{background:#9b75df;box-shadow:0 0 0 5px rgba(155,117,223,.1)}.notice-stream article>div{min-width:0}.notice-stream strong,.notice-stream small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.notice-stream strong{font-size:11px}.notice-stream small{margin-top:3px;color:#929daf;font-size:8px}.notice-stream time{color:#9ba5b6;font-size:8px}
 .screen-footer{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding:11px 5px 0;color:#8a97aa;font-size:9px}.screen-footer span{display:flex;align-items:center;gap:7px}.screen-footer i{width:5px;height:5px;border-radius:50%;background:#7080e8}.screen-footer strong{color:#748198;font-weight:600}
 @keyframes ambient-float{50%{transform:translate(28px,18px) scale(1.05)}}@keyframes title-glow{50%{opacity:.35;width:260px}}@keyframes live-pulse{50%{box-shadow:0 0 0 8px rgba(73,184,139,0)}}@keyframes metric-in{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}@keyframes panel-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}@keyframes bar-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}@keyframes spin{to{transform:rotate(360deg)}}
-@media(max-width:1350px){.visual-grid>:nth-child(1){grid-column:span 8}.visual-grid>:nth-child(2){grid-column:span 4}.visual-grid>:nth-child(3),.visual-grid>:nth-child(n+4){grid-column:span 6}.screen-title i{display:none}}
+.screen-summary{grid-template-columns:1.15fr repeat(6,1fr)}
+.visual-grid>:nth-child(8){grid-column:span 8}
+.collaboration-body{display:grid;grid-template-columns:1.05fr 1fr;gap:16px;padding:2px 20px 18px}.collaboration-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.collaboration-stats>div{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:13px;background:#f5f7fc}.collaboration-stats .el-icon{width:32px;height:32px;flex:0 0 32px;border-radius:10px;background:#e9edff;color:#6979df;font-size:16px}.collaboration-stats>div:nth-child(2) .el-icon{background:#e8f8f2;color:#3eaa82}.collaboration-stats>div:nth-child(3) .el-icon{background:#eef8fb;color:#45a7bd}.collaboration-stats>div:nth-child(4) .el-icon{background:#fff4e7;color:#df9848}.collaboration-stats>div.alert{background:#fff1f3}.collaboration-stats>div.alert .el-icon{background:#ffe1e7;color:#df617a}.collaboration-stats span,.collaboration-stats strong,.collaboration-stats small{display:block}.collaboration-stats span{color:#8793a6;font-size:9px}.collaboration-stats strong{margin:2px 0;color:#293a57;font-size:20px}.collaboration-stats small{color:#9ca6b6;font-size:8px}.workspace-overview{display:grid;align-content:center;gap:9px}.workspace-row{display:grid;grid-template-columns:90px minmax(0,1fr) 38px;align-items:center;gap:8px;font-size:9px}.workspace-row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.workspace-row>i{height:6px;overflow:hidden;border-radius:6px;background:#edf1f7}.workspace-row b{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#7182ea,#4dbb94);animation:bar-grow .9s .35s both;transform-origin:left}.workspace-row strong{text-align:right;color:#718097;font-size:9px}
+@media(max-width:1350px){.visual-grid>:nth-child(1){grid-column:span 8}.visual-grid>:nth-child(2){grid-column:span 4}.visual-grid>:nth-child(3),.visual-grid>:nth-child(n+4){grid-column:span 6}.visual-grid>:nth-child(8){grid-column:span 12}.screen-title i{display:none}}
 @media(max-width:1050px){.screen-summary{grid-template-columns:repeat(3,1fr)}.scope-copy{grid-row:span 2}}
 @media(max-width:900px){.data-screen{overflow:auto}.screen-header{grid-template-columns:1fr auto}.screen-title{grid-column:1/-1;grid-row:1;text-align:left}.screen-brand{grid-row:2}.screen-tools{grid-row:2}.screen-summary{grid-template-columns:repeat(2,1fr)}.scope-copy{grid-column:1/-1;grid-row:auto}.visual-grid>*{grid-column:1/-1!important}.live-state{display:none}}
 @media(max-width:600px){.data-screen{padding:12px}.screen-brand>div,.screen-time{display:none}.screen-title h1{font-size:20px}.screen-summary{grid-template-columns:1fr}.screen-metric{min-height:78px}.screen-tools{gap:7px}.screen-footer{align-items:flex-start;flex-direction:column;gap:5px}}
