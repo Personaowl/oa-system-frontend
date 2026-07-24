@@ -13,7 +13,7 @@
     </div>
 
     <section class="panel section">
-      <SectionTitle title="员工档案" subtitle="员工账号、组织归属和角色信息均来自 user-service，薪资请前往独立的薪资管理页面维护。">
+      <SectionTitle title="员工档案" subtitle="员工账号、组织归属和角色信息均来自 user-service。">
         <template #extra>
           <div class="employee-filter-row">
             <el-input v-model="keyword" clearable placeholder="姓名 / 登录账号" class="employee-search" />
